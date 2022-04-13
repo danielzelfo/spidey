@@ -1,0 +1,6 @@
+https://www.ics.uci.edu/honors/advising/
+redirects to 
+https://www.ics.uci.edu/ugrad/honors/index.php/advising/
+
+trap:
+https://www.ics.uci.edu/ugrad/honors/index.php/*
