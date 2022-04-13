@@ -1,6 +1,6 @@
-https://www.ics.uci.edu/honors/advising/
+https://www.ics.uci.edu/honors/*
 redirects to 
-https://www.ics.uci.edu/ugrad/honors/index.php/advising/
+https://www.ics.uci.edu/ugrad/honors/index.php/*
 
 trap:
 https://www.ics.uci.edu/ugrad/honors/index.php/*
