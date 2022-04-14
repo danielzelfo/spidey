@@ -41,9 +41,12 @@ def extract_next_links(url, resp):
     if resp.status != 200 or not resp.raw_response or not resp.raw_response.content:
         return outlinks
     
-    for linktuple in html.fromstring(resp.raw_response.content).iterlinks():
-        if linktuple[0].tag == 'a':
-            outlinks.add(absolute_url(url, linktuple[2]))
+    try:
+        for linktuple in html.fromstring(resp.raw_response.content).iterlinks():
+            if linktuple[0].tag == 'a':
+                outlinks.add(absolute_url(url, linktuple[2]))
+    except:
+        pass
 
     return outlinks
 
