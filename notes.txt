@@ -9,6 +9,9 @@ https://www.ics.uci.edu/ugrad/honors/index.php/*
 
 
 examples:
+http://ics.uci.edu/ugrad/sao/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employ_faculty.php
+
+
 https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/overview/step-2-honors-seminar-ics-h197.php
 https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/SAO_News_and_Updates.php
 https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/forms.php
@@ -76,7 +79,69 @@ function - takes page content for each page
 robots.txt - 
     blacklist disallowed
     sitemap - 
-            crawl sitemap instead of domain if exists
+            https://www.ics.uci.edu/honors/advising/
+redirects to 
+https://www.ics.uci.edu/ugrad/honors/index.php/advising/
+
+trap:
+https://www.ics.uci.edu/ugrad/honors/index.php/*
+
+trap ex: https://swiki.ics.uci.edu/doku.php/network:pen?image=labs%3Adeploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group%3Asupport%3Aimaging_devices
+sitemap:https://swiki.ics.uci.edu/doku.php/network:pen?do=index
+
+
+blacklist - 
+    avoid bad links: 
+        avoid some code - 404?
+        avoid empty responses
+    "low information value page":
+        count frequency of tokens that are real words
+
+url patterns:
+    - ex: repeating directory/pattern
+and/or text similarity - do not use links inside
+                - compare to previous page
+
+issue with same webpage with different query parameters
+    ideas: sort query parameters
+           limit number of times a url can be visited without the query
+
+
+function - takes page url for each page
+keep track of list of subdomains
+    number of unique pages in each subdomain (ordered by freq / alpha )
+
+global url variable - max page size (tokens)
+
+function - takes page content for each page
+50 most common words
+    order by freq / alpha
+    eliminate stop words
+
+
+
+
+
+robots.txt - 
+    blacklist disallowed
+    sitemap - 
+            crawl sitemap in addition to subdomain index page
+            
+            pseudo code:
+            
+            when a new subdomain is found, 
+                add subdomain home page to list?
+
+                if robots.txt exists and it includes a sitemap
+                    if the sitemap is xml
+                        add the sitemap url to the list
+                    if the sitemap is txt
+                        add all the urls in the txt file to the list
+            
+            note: will need to sleep for robots.txt / sitemap.txt for politeness
+            
+            
+            
             can use for freshness (not needed) 
                 if the sitemap isnt kept up to date, check the actual website instead
 

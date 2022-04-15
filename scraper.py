@@ -35,20 +35,17 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-
-    outlinks = set()
     
-    if resp.status != 200 or not resp.raw_response or not resp.raw_response.content:
-        return outlinks
+    if resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url):
+        return set()
     
     try:
-        for linktuple in html.fromstring(resp.raw_response.content).iterlinks():
-            if linktuple[0].tag == 'a':
-                outlinks.add(absolute_url(url, linktuple[2]))
+        tree = html.fromstring(resp.raw_response.content)
     except:
-        pass
-
-    return outlinks
+        return set()
+    
+    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
+    
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
