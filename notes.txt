@@ -1,3 +1,5 @@
+
+1 repeating path trap
 https://www.ics.uci.edu/honors/advising/
 redirects to 
 https://www.ics.uci.edu/ugrad/honors/index.php/advising/
@@ -5,9 +7,23 @@ https://www.ics.uci.edu/ugrad/honors/index.php/advising/
 trap:
 https://www.ics.uci.edu/ugrad/honors/index.php/*
 
+
+examples:
+https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/overview/step-2-honors-seminar-ics-h197.php
+https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/SAO_News_and_Updates.php
+https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/forms.php
+https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/policies/Course_Outside_UCI.php
+https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/policies/resources/resources/degrees/resources/courses/overview/sao/policies/sao/resources/overview/resources/policies/degrees/policies/degrees/media.php
+https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/policies/resources/resources/degrees/resources/courses/overview/sao/policies/sao/resources/overview/resources/policies/degrees/policies/degrees/sao/policies/forms.php
+
+
+2. query trap
 trap ex: https://swiki.ics.uci.edu/doku.php/network:pen?image=labs%3Adeploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group%3Asupport%3Aimaging_devices
 sitemap:https://swiki.ics.uci.edu/doku.php/network:pen?do=index
 
+solutions: 
+    sort queries when crawling to make unique urls (since the order of the queries does not matter)
+    check similarity of all pages with query. if there is not much difference between other query urls on page - blacklist all query urls on that webpage.
 
 blacklist - 
     avoid bad links: 
