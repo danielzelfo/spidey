@@ -45,6 +45,7 @@ def extract_next_links(url, resp):
         if linktuple[0].tag == 'a':
             outlinks.add(absolute_url(url, linktuple[2]))
 
+    # print(resp.raw_response.content)
     return outlinks
 
 def is_valid(url):
