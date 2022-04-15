@@ -23,8 +23,8 @@ class Worker(Thread):
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
-            timebeforelastrequest = timeit.default_timer()
             resp = download(tbd_url, self.config, self.logger)
+            timeafterlastrequest = timeit.default_timer()
             self.logger.info(
                 f"Downloaded {tbd_url}, status <{resp.status}>, "
                 f"using cache {self.config.cache_server}.")
@@ -32,6 +32,6 @@ class Worker(Thread):
             for scraped_url in scraped_urls:
                 self.frontier.add_url(scraped_url)
             self.frontier.mark_url_complete(tbd_url)
-            sleeptime = self.config.time_delay - timeit.default_timer() + timebeforelastrequest
+            sleeptime = self.config.time_delay - timeit.default_timer() + timeafterlastrequest
             if sleeptime > 0:
                 time.sleep(sleeptime)
