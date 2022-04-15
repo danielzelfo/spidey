@@ -18,7 +18,23 @@ https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overvie
 
 
 2. query trap
-trap ex: https://swiki.ics.uci.edu/doku.php/network:pen?image=labs%3Adeploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group%3Asupport%3Aimaging_devices
+examples: 
+https://swiki.ics.uci.edu/doku.php/network:pen?image=labs%3Adeploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group%3Asupport%3Aimaging_devices
+https://swiki.ics.uci.edu/doku.php/network:pen?image=labs:deploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group:support:imaging_devices
+https://swiki.ics.uci.edu/doku.php/network:pen?ns=security&tab_files=files&do=media&tab_details=view&image=labs%3Adeploystudio_guide_2.0.pdf
+https://swiki.ics.uci.edu/doku.php/network:pen?image=security%3Afireeyeendpointtaskbaricon.png&ns=security&tab_details=view&do=media&tab_files=files
+https://swiki.ics.uci.edu/doku.php/network:pen?ns=icsdc&tab_files=files&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png
+https://swiki.ics.uci.edu/doku.php/network:pen?tab_files=search&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png&ns=icsdc
+https://swiki.ics.uci.edu/doku.php/network:pen?tab_details=history&do=media&tab_files=search&image=security%3Afireeyeendpointtaskbaricon.png&ns=icsdc
+https://swiki.ics.uci.edu/doku.php/network:pen?ns=group&tab_files=files&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png
+https://swiki.ics.uci.edu/doku.php/network:pen?tab_files=upload&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png&ns=group
+https://swiki.ics.uci.edu/doku.php/network:pen?tab_files=files&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png&ns=group
+https://swiki.ics.uci.edu/doku.php/network:pen?image=security%3Afireeyeendpointtaskbaricon.png&tab_details=view&do=media&tab_files=upload&ns=group
+https://swiki.ics.uci.edu/doku.php/network:pen?ns=group%3Asupport&tab_files=files&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png
+https://swiki.ics.uci.edu/doku.php/network:pen?ns=group%3Asupport%3Agoogle&tab_files=files&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png
+https://swiki.ics.uci.edu/doku.php/network:pen?tab_details=history&do=media&tab_files=files&image=security%3Afireeyeendpointtaskbaricon.png&ns=group%3Asupport%3Agoogle
+https://swiki.ics.uci.edu/doku.php/network:pen?ns=group%3Asupport%3Ahardware&tab_files=files&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png
+
 sitemap:https://swiki.ics.uci.edu/doku.php/network:pen?do=index
 
 solutions: 
