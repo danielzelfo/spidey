@@ -38,7 +38,7 @@ def extract_next_links(url, resp):
 
     outlinks = set()
     
-    if resp.status != 200 or not resp.raw_response or not resp.raw_response.content:
+    if resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url):
         return outlinks
     
     try:
