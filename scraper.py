@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
 import re
+from collections import Counter
 
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
@@ -16,9 +17,18 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
+# Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
+def isRepeat(link):
+    lst = re.split(r'\/', link)
+    dict1 = dict(Counter(lst))
+    for key,value in dict1.items():
+        if value > 5:
+            return 1
+    return 0
+
 def scraper(url, resp):
     links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+    return [link for link in links if is_valid(link) and not isRepeat(link)]
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
@@ -44,8 +54,9 @@ def extract_next_links(url, resp):
     except:
         return set()
     
-    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
+    outlink = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
     
+    return outlink
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
