@@ -2,7 +2,10 @@ import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
 from collections import Counter
+import os
 
+### FOR TESTING
+TEMPORARYREGEX = re.compile(r"^\/ugrad\/honors\/index\.php\/")
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
@@ -16,18 +19,30 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
+BLACKLIST_FILEPATH = "blacklist.shelve"
+PATH_REPEAT_THRESHOLD = 3
+
+blacklist = {}
+if os.path.exists(BLACKLIST_FILEPATH):
+    with open(BLACKLIST_FILEPATH, "r") as f:
+        for pattern in f.readlines():
+            blacklist[pattern] = re.compile(pattern)
+
+def exit():
+    with open(BLACKLIST_FILEPATH, "w") as f:
+        print("SAVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        f.write("\n".join(blacklist.keys()))
+
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
-def isRepeat(urlpath):
+def getPathRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
-    for key,value in dict1.items():
-        if value > 5:
-            return 1
-    return 0
+    return [key for key,value in dict1.items() if value > PATH_REPEAT_THRESHOLD]
 
-def scraper(url, resp):
-    links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link)]
+def scraper(url, resp, frontier):
+    print("SCRAPER", url)
+    links = extract_next_links(url, resp, frontier)
+    return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier)]
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
@@ -35,7 +50,7 @@ def absolute_url(page_url, outlink_url):
     # remove fragment
     return urldefrag(newurl)[0]
 
-def extract_next_links(url, resp):
+def extract_next_links(url, resp, frontier):
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
     # resp.status: the status code returned by the server. 200 is OK, you got the page. Other numbers mean that there was some kind of problem.
@@ -44,8 +59,16 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-    
+
     if resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url):
+        return set()
+    
+    # check if redirect is blacklisted
+    if resp.url != url and is_blacklisted(resp.url):
+        return set()
+    
+    # check if redirect is a trap
+    if resp.url != url and is_trap(resp.url, frontier):
         return set()
     
     try:
@@ -57,6 +80,30 @@ def extract_next_links(url, resp):
     
     return outlink
 
+def is_blacklisted(url):
+    for pattern in blacklist:
+        if blacklist[pattern].match(url):
+            print("MATCHES", url)
+            return True
+    return False
+
+def is_trap(url, frontier):
+    parsed = urlparse(url)
+    urlpath = parsed.path.lower()
+    repeats = getPathRepeat(urlpath)
+    if len(repeats) != 0:
+        patternstr = f"{re.escape(url[:min(url.find(repeat) for repeat in repeats)-1])}.*"
+        regex = re.compile(patternstr)
+        for pattern in blacklist:
+            if pattern.startswith(patternstr[:-2]):
+                del blacklist[pattern]
+        blacklist[patternstr] = regex
+        frontier.cancel_urls(regex)
+        print([b for b in blacklist], "\n"*20)
+        return True
+    return False
+
+
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.
@@ -64,7 +111,7 @@ def is_valid(url):
     try:
         parsed = urlparse(url)
         urlpath = parsed.path.lower()
-        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(urlpath) and not isRepeat(urlpath)
+        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and TEMPORARYREGEX.match(urlpath) and not bad_ext_path_pattern.match(urlpath)
     except TypeError:
         print ("TypeError for ", parsed)
         raise
