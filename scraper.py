@@ -1,7 +1,6 @@
 import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
-import re
 from collections import Counter
 
 scheme_pattern = re.compile(r"^https?$")
@@ -18,8 +17,8 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
-def isRepeat(link):
-    lst = re.split(r'\/', link)
+def isRepeat(urlpath):
+    lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
     for key,value in dict1.items():
         if value > 5:
@@ -28,7 +27,7 @@ def isRepeat(link):
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
-    return [link for link in links if is_valid(link) and not isRepeat(link)]
+    return [link for link in links if is_valid(link)]
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
@@ -64,7 +63,8 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(parsed.path.lower())
+        urlpath = parsed.path.lower()
+        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(urlpath) and not isRepeat(urlpath)
     except TypeError:
         print ("TypeError for ", parsed)
         raise
