@@ -26,6 +26,8 @@ class Frontier(object):
         # Load existing save file, or create one if it does not exist.
         self.save = shelve.open(self.config.save_file)
         if restart:
+            if os.path.exists(self.config.blacklist_file):
+                os.remove(self.config.blacklist_file)
             for url in self.config.seed_urls:
                 self.add_url(url)
         else:

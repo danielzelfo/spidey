@@ -19,18 +19,22 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
-BLACKLIST_FILEPATH = "blacklist.shelve"
 PATH_REPEAT_THRESHOLD = 3
+blacklistfilepath = "default_blacklist_savepath.txt"
 
 blacklist = {}
-if os.path.exists(BLACKLIST_FILEPATH):
-    with open(BLACKLIST_FILEPATH, "r") as f:
-        for pattern in f.readlines():
-            blacklist[pattern] = re.compile(pattern)
+temp_blacklist = {}
 
-def exit():
-    with open(BLACKLIST_FILEPATH, "w") as f:
-        print("SAVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+def init(blacklistsavepath):
+    global blacklistfilepath
+    blacklistfilepath = blacklistsavepath
+    if os.path.exists(blacklistsavepath):
+        with open(blacklistsavepath, "r") as f:
+            for pattern in f.readlines():
+                blacklist[pattern] = re.compile(pattern)
+
+def save_blacklist(blacklistsavepath):
+    with open(blacklistsavepath, "w") as f:
         f.write("\n".join(blacklist.keys()))
 
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
@@ -83,7 +87,9 @@ def extract_next_links(url, resp, frontier):
 def is_blacklisted(url):
     for pattern in blacklist:
         if blacklist[pattern].match(url):
-            print("MATCHES", url)
+            return True
+    for pattern in temp_blacklist:
+        if temp_blacklist[pattern].match(url):
             return True
     return False
 
@@ -94,12 +100,23 @@ def is_trap(url, frontier):
     if len(repeats) != 0:
         patternstr = f"{re.escape(url[:min(url.find(repeat) for repeat in repeats)-1])}.*"
         regex = re.compile(patternstr)
+        todel = []
         for pattern in blacklist:
             if pattern.startswith(patternstr[:-2]):
-                del blacklist[pattern]
+                todel.append(pattern)
+        for p in todel:
+            del blacklist[p]
         blacklist[patternstr] = regex
         frontier.cancel_urls(regex)
-        print([b for b in blacklist], "\n"*20)
+
+        for r in repeats:
+            pattern = f"{re.escape(parsed.scheme + '://' + parsed.netloc)}.*{r}"
+            tempregex = re.compile(pattern)
+            temp_blacklist[pattern] = tempregex
+            frontier.cancel_urls(tempregex)
+
+        print("TEMPORARY BLACKLIST:", list(temp_blacklist.keys()))
+        print("BLACKLIST:", list(blacklist.keys()), "\n"*20)
         return True
     return False
 
