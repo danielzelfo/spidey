@@ -37,6 +37,7 @@ def init(config):
     if os.path.exists(blacklistfilepath):
         with open(blacklistfilepath, "r") as f:
             for pattern in f.readlines():
+                pattern = pattern.strip()
                 blacklist[pattern] = re.compile(pattern)
 
 # saves blacklist pattern list to file path provided
