@@ -19,20 +19,29 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
-PATH_REPEAT_THRESHOLD = 3
-blacklistfilepath = "default_blacklist_savepath.txt"
+# DEFAULTS - these are replace by the config.ini file
+#   threshold for a repeating directory in the url path 
+path_repeat_threshold = 3
+#   path to save permanent blacklist
+blacklistfilepath = "blacklist_save.txt"
 
 blacklist = {}
 temp_blacklist = {}
 
-def init(blacklistsavepath):
-    global blacklistfilepath
-    blacklistfilepath = blacklistsavepath
-    if os.path.exists(blacklistsavepath):
-        with open(blacklistsavepath, "r") as f:
+# initialize scraper
+#   blacklist pattern list
+#   
+def init(config):
+    global blacklistfilepath, path_repeat_threshold
+    blacklistfilepath = config.blacklist_file
+    path_repeat_threshold = config.path_repeat_threshold
+
+    if os.path.exists(blacklistfilepath):
+        with open(blacklistfilepath, "r") as f:
             for pattern in f.readlines():
                 blacklist[pattern] = re.compile(pattern)
 
+# saves blacklist pattern list to file path provided
 def save_blacklist(blacklistsavepath):
     with open(blacklistsavepath, "w") as f:
         f.write("\n".join(blacklist.keys()))
@@ -41,10 +50,9 @@ def save_blacklist(blacklistsavepath):
 def getPathRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
-    return [key for key,value in dict1.items() if value > PATH_REPEAT_THRESHOLD]
+    return [key for key,value in dict1.items() if value > path_repeat_threshold]
 
 def scraper(url, resp, frontier):
-    print("SCRAPER", url)
     links = extract_next_links(url, resp, frontier)
     return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier)]
 
@@ -84,6 +92,8 @@ def extract_next_links(url, resp, frontier):
     
     return outlink
 
+# check if a url is blacklisted
+#   uses the permanent and temporary blacklists
 def is_blacklisted(url):
     for pattern in blacklist:
         if blacklist[pattern].match(url):
@@ -93,12 +103,24 @@ def is_blacklisted(url):
             return True
     return False
 
+# check if a url is a trap
+#   checks repeating url pattern
+#       all sibling directories of the first directory in the url path that repeats and their children are PERMANENTLY blacklisted
+#           EX: https://www.example.com/x/a/b/c/a/b/c/a/b/c
+#               => permanent blacklist https://www.example.com/x.*
+#               if another pattern is included in the new blacklist pattern, it will be removed.
+#                    EX: https://www.example.com/x/y.* would be removed since it is included in https://www.example.com/x.*
+#       if a directory repeats a set number of times in the path, it will be a key that is temporarily blacklisted from the crawling of the domain
+#       this is done to speed up the process of finding the highest level directory that is causing an endless path repetition loop
+#           EX: https://www.example.com/x/a/b/c/a/b/c/a/b/c
+#               => temporarily blacklist https://www.example.com/.*a, https://www.example.com/.*b, https://www.example.com/.*c
 def is_trap(url, frontier):
     parsed = urlparse(url)
     urlpath = parsed.path.lower()
     repeats = getPathRepeat(urlpath)
     if len(repeats) != 0:
-        patternstr = f"{re.escape(url[:min(url.find(repeat) for repeat in repeats)-1])}.*"
+        urlpart = url[:min(url.find(repeat) for repeat in repeats)-1]
+        patternstr = f"{re.escape(urlpart)}.*"
         regex = re.compile(patternstr)
         todel = []
         for pattern in blacklist:
@@ -110,17 +132,15 @@ def is_trap(url, frontier):
         frontier.cancel_urls(regex)
 
         for r in repeats:
-            pattern = f"{re.escape(parsed.scheme + '://' + parsed.netloc)}.*{r}"
+            pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
             tempregex = re.compile(pattern)
             temp_blacklist[pattern] = tempregex
             frontier.cancel_urls(tempregex)
-
-        print("TEMPORARY BLACKLIST:", list(temp_blacklist.keys()))
-        print("BLACKLIST:", list(blacklist.keys()), "\n"*20)
+        
         return True
     return False
 
-
+# check if the scheme, netloc, and path of the url are valid
 def is_valid(url):
     # Decide whether to crawl this url or not. 
     # If you decide to crawl it, return True; otherwise return False.

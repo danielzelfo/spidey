@@ -12,7 +12,6 @@ class Worker(Thread):
         self.logger = get_logger(f"Worker-{worker_id}", "Worker")
         self.config = config
         self.frontier = frontier
-        scraper.init(self.config.blacklist_file)
         # basic check for requests in scraper
         assert {getsource(scraper).find(req) for req in {"from requests import", "import requests"}} == {-1}, "Do not use requests from scraper.py"
         super().__init__(daemon=True)
@@ -21,7 +20,6 @@ class Worker(Thread):
         while True:
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
-                scraper.save_blacklist(self.config.blacklist_file)
                 self.logger.info("Frontier is empty. Stopping Crawler.")
                 break
             resp = download(tbd_url, self.config, self.logger)

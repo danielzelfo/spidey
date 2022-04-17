@@ -16,5 +16,6 @@ class Config(object):
 
         self.seed_urls = config["CRAWLER"]["SEEDURL"].split(",")
         self.time_delay = float(config["CRAWLER"]["POLITENESS"])
+        self.path_repeat_threshold = float(config["CRAWLER"]["PATH_REPEAT_THRESHOLD"])
 
         self.cache_server = None

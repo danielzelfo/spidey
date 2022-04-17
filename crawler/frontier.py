@@ -74,17 +74,14 @@ class Frontier(object):
         self.save.sync()
     
     def cancel_urls(self, urlregex):
-        print("cancel_urls", urlregex.pattern)
         new_to_be_downloaded = []
         for tbd in self.to_be_downloaded:
             if urlregex.match(tbd):
                 urlhash = get_urlhash(tbd)
                 if urlhash in self.save:
                     del self.save[urlhash]
-                print("REMOVED", tbd)
             else:
                 new_to_be_downloaded.append(tbd)
-                print("KEPT", tbd)
         self.to_be_downloaded = new_to_be_downloaded
         
         self.save.sync()
