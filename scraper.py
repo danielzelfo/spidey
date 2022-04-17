@@ -2,6 +2,8 @@ import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
 from collections import Counter
+import requests
+
 
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
@@ -16,12 +18,13 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
+robotsLst = []
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def isRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
     for key,value in dict1.items():
-        if value > 5:
+        if value > 2:
             return 1
     return 0
 
@@ -48,6 +51,14 @@ def extract_next_links(url, resp):
     if resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url):
         return set()
     
+    # parsed = urlparse(url)
+    # if (parsed.netloc.lower() + "Allow" or parsed.netloc.lower() + "Disallow") not in robotsLst:
+    #     resp2 = requests.get(f"http://{parsed.netloc}/robots.txt")
+    #     if resp2 != 200:
+    #         pass
+        
+
+
     try:
         tree = html.fromstring(resp.raw_response.content)
     except:
