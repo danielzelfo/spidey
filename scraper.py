@@ -4,8 +4,6 @@ from lxml import html
 from collections import Counter
 import os
 
-### FOR TESTING
-TEMPORARYREGEX = re.compile(r"^\/ugrad\/honors\/index\.php\/")
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
@@ -60,7 +58,7 @@ def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
     newurl = urljoin(page_url, outlink_url)
     # remove fragment
-    return urldefrag(newurl)[0]
+    return urldefrag(newurl)[0].split("?")[0]
 
 def extract_next_links(url, resp, frontier):
     # url: the URL that was used to get the page
@@ -113,7 +111,7 @@ def is_blacklisted(url):
 #       if a directory repeats a set number of times in the path, it will be a key that is temporarily blacklisted from the crawling of the domain
 #       this is done to speed up the process of finding the highest level directory that is causing an endless path repetition loop
 #           EX: https://www.example.com/x/a/b/c/a/b/c/a/b/c
-#               => temporarily blacklist https://www.example.com/.*a, https://www.example.com/.*b, https://www.example.com/.*c
+#               => temporarily blacklist https://www.example.com/.*a, https://www.example.com/x/.*b, https://www.example.com/x/a/.*c
 def is_trap(url, frontier):
     parsed = urlparse(url)
     urlpath = parsed.path.lower()
@@ -135,8 +133,8 @@ def is_trap(url, frontier):
             pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
             tempregex = re.compile(pattern)
             temp_blacklist[pattern] = tempregex
-            frontier.cancel_urls(tempregex)
-        
+            frontier.cancel_urls(tempregex) 
+           
         return True
     return False
 
@@ -147,8 +145,7 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        urlpath = parsed.path.lower()
-        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and TEMPORARYREGEX.match(urlpath) and not bad_ext_path_pattern.match(urlpath)
+        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(parsed.path.lower())
     except TypeError:
         print ("TypeError for ", parsed)
         raise
