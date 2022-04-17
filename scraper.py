@@ -1,7 +1,9 @@
 import re
 from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
-import re
+from collections import Counter
+import requests
+
 
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
@@ -15,6 +17,16 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
+
+robotsLst = []
+# Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
+def isRepeat(urlpath):
+    lst = urlpath.split('/')
+    dict1 = dict(Counter(lst))
+    for key,value in dict1.items():
+        if value > 2:
+            return 1
+    return 0
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -39,13 +51,22 @@ def extract_next_links(url, resp):
     if resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url):
         return set()
     
+    # parsed = urlparse(url)
+    # if (parsed.netloc.lower() + "Allow" or parsed.netloc.lower() + "Disallow") not in robotsLst:
+    #     resp2 = requests.get(f"http://{parsed.netloc}/robots.txt")
+    #     if resp2 != 200:
+    #         pass
+        
+
+
     try:
         tree = html.fromstring(resp.raw_response.content)
     except:
         return set()
     
-    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
+    outlink = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
     
+    return outlink
 
 def is_valid(url):
     # Decide whether to crawl this url or not. 
@@ -53,7 +74,8 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(parsed.path.lower())
+        urlpath = parsed.path.lower()
+        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(urlpath) and not isRepeat(urlpath)
     except TypeError:
         print ("TypeError for ", parsed)
         raise
