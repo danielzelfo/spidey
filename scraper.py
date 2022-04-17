@@ -45,6 +45,7 @@ def save_blacklist(blacklistsavepath):
     with open(blacklistsavepath, "w") as f:
         f.write("\n".join(blacklist.keys()))
 
+robotsDict = {}
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def getPathRepeat(urlpath):
     lst = urlpath.split('/')

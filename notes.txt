@@ -35,6 +35,7 @@ SOLUTIONS:
         url patterns:
             - ex: repeating directory/pattern (see examples below)
             - find a way to avoid using a pattern or directory depth limit
+            - filter non webpage urls. EX. PDF,CSS
         and/OR text similarity 
             - compare to previous page
             - links inside a similar page will not be crawled
