@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urljoin, urldefrag,
+from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
 from collections import Counter
 import os
@@ -89,7 +89,7 @@ def getPathRepeat(urlpath):
     dict1 = dict(Counter(lst))
     return [key for key,value in dict1.items() if value > config.path_repeat_threshold]
 
-def scraper(url, resp):
+def scraper(url, resp, frontier):
     links = sort_by_query(extract_next_links(url, resp, frontier))
     return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and robotsCanFetch(link)]
 
@@ -97,7 +97,7 @@ def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
     newurl = urljoin(page_url, outlink_url)
     # remove fragment
-    return urldefrag(newurl)[0].split("?")[0]
+    return urldefrag(newurl)[0]
 
 def extract_next_links(url, resp, frontier):
     # url: the URL that was used to get the page
@@ -126,8 +126,6 @@ def extract_next_links(url, resp, frontier):
         return set()
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
-
-    print("extracted links: ", extracted)
     
     return extracted
     
@@ -136,28 +134,23 @@ def extract_next_links(url, resp, frontier):
 # remove any urls with same query parameters
 # pointless to run if majority of links have no query parameters
 def sort_by_query(links):
-    map = {} # Store sorted links
-    sorted_links = [] # Return 
+    sorted_links = set() # Return 
 
     for url in links:
         parsed = urlparse(url)
         # extract/sort query 
         query = parsed.query.split("&")
         query.sort()
-        query_string = ""
-        # build new query string
-        for q in query:
-            query_string += q
-        print("query_string", query_string)
-        # url with sorted query
-        new_url = parsed.scheme + parsed.netloc + parsed.path + query_string
 
-        #check if url exists already, if not add to return list
-        if new_url not in map:
-            map[new_url] = 1
-            sorted_links.append(new_url)
+        query_string = "&".join(query)
+        
+        # url with sorted query
+        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment))
+
+        #adding to set removes duplicates
+        sorted_links.add(new_url)
     
-    return sorted_links
+    return list(sorted_links)
 
 # check if a url is blacklisted
 #   uses the permanent and temporary blacklists
