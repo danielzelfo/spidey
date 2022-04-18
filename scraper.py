@@ -3,6 +3,14 @@ from urllib.parse import urlparse, urljoin, urldefrag
 from lxml import html
 from collections import Counter
 import os
+from utils.download import download
+import time
+import urllib.robotparser
+import robotparser
+
+# override urllib robotparser code
+urllib.robotparser.Entry = robotparser.Entry
+urllib.robotparser.RuleLine = robotparser.RuleLine
 
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
@@ -17,25 +25,55 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
-# DEFAULTS - these are replace by the config.ini file
-#   threshold for a repeating directory in the url path 
-path_repeat_threshold = 3
-#   path to save permanent blacklist
-blacklistfilepath = "blacklist_save.txt"
-
 blacklist = {}
 temp_blacklist = {}
+
+robotsDict = {}
+
+config = None
+
+def cacheRobots(url):
+    
+    netloc = urlparse(url).netloc
+    if not netloc in robotsDict:
+        robotsurl = url.split(netloc)[0] + netloc+"/robots.txt"
+        resp = download(robotsurl, config)
+        if resp.status != 200:
+            robotsDict[netloc] = None
+            return None
+        
+        time.sleep(config.time_delay)
+
+        ab_path = os.path.join(os.getcwd(), "TEMP_ROBOTS.txt")
+        with open(ab_path, "wb") as f:
+            f.write(resp.raw_response.content)
+        
+        rp = urllib.robotparser.RobotFileParser()
+        rp.set_url("file://"+ab_path)
+        rp.read()
+        rrate = rp.request_rate("")
+        rp.crawl_delay("")
+
+        robotsDict[netloc] = rp
+    
+    return robotsDict[netloc]
+
+def robotsCanFetch(url):
+    rp = cacheRobots(url)
+    if rp is None:
+        return True
+    
+    return rp.can_fetch('*', url)
 
 # initialize scraper
 #   blacklist pattern list
 #   
-def init(config):
-    global blacklistfilepath, path_repeat_threshold
-    blacklistfilepath = config.blacklist_file
-    path_repeat_threshold = config.path_repeat_threshold
+def init(tconfig):
+    global config
+    config = tconfig
 
-    if os.path.exists(blacklistfilepath):
-        with open(blacklistfilepath, "r") as f:
+    if os.path.exists(config.blacklist_file):
+        with open(config.blacklist_file, "r") as f:
             for pattern in f.readlines():
                 pattern = pattern.strip()
                 blacklist[pattern] = re.compile(pattern)
@@ -45,16 +83,15 @@ def save_blacklist(blacklistsavepath):
     with open(blacklistsavepath, "w") as f:
         f.write("\n".join(blacklist.keys()))
 
-robotsDict = {}
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def getPathRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
-    return [key for key,value in dict1.items() if value > path_repeat_threshold]
+    return [key for key,value in dict1.items() if value > config.path_repeat_threshold]
 
 def scraper(url, resp, frontier):
     links = extract_next_links(url, resp, frontier)
-    return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier)]
+    return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and robotsCanFetch(link)]
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
