@@ -10,6 +10,7 @@ class Config(object):
         self.threads_count = int(config["LOCAL PROPERTIES"]["THREADCOUNT"])
         self.save_file = config["LOCAL PROPERTIES"]["SAVE"]
         self.blacklist_file = config["LOCAL PROPERTIES"]["BLACKLIST"]
+        self.robots_file = config["LOCAL PROPERTIES"]["LOCAL_ROBOTS"]
 
         self.host = config["CONNECTION"]["HOST"]
         self.port = int(config["CONNECTION"]["PORT"])
