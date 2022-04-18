@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urljoin, urldefrag
+from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
 from collections import Counter
 import os
@@ -98,14 +98,14 @@ def getPathRepeat(urlpath):
     return [key for key,value in dict1.items() if value > config.path_repeat_threshold]
 
 def scraper(url, resp, frontier):
-    links = extract_next_links(url, resp, frontier)
+    links = sort_by_query(extract_next_links(url, resp, frontier))
     return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and subdomainInfo.process_url(link).canFetch(link)]
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
     newurl = urljoin(page_url, outlink_url)
     # remove fragment
-    return urldefrag(newurl)[0].split("?")[0]
+    return urldefrag(newurl)[0]
 
 def extract_next_links(url, resp, frontier):
     # url: the URL that was used to get the page
@@ -129,13 +129,36 @@ def extract_next_links(url, resp, frontier):
         return set()
     
     try:
-        tree = html.fromstring(resp.raw_response.content)
+        tree = html.fromstring(resp.raw_response.content) #check if urls are valid
     except:
         return set()
+
+    extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
     
-    outlink = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
+    return extracted
     
-    return outlink
+
+# sort_by_query will sort querys
+# remove any urls with same query parameters
+# pointless to run if majority of links have no query parameters
+def sort_by_query(links):
+    sorted_links = set() # Return 
+
+    for url in links:
+        parsed = urlparse(url)
+        # extract/sort query 
+        query = parsed.query.split("&")
+        query.sort()
+
+        query_string = "&".join(query)
+        
+        # url with sorted query
+        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment))
+
+        #adding to set removes duplicates
+        sorted_links.add(new_url)
+    
+    return list(sorted_links)
 
 # check if a url is blacklisted
 #   uses the permanent and temporary blacklists
@@ -192,7 +215,9 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        return scheme_pattern.match(parsed.scheme.lower()) and netloc_pattern.match(parsed.netloc.lower()) and not bad_ext_path_pattern.match(parsed.path.lower())
+        return (scheme_pattern.match(parsed.scheme.lower()) 
+                and netloc_pattern.match(parsed.netloc.lower()) 
+                and not bad_ext_path_pattern.match(parsed.path.lower()))
     except TypeError:
         print ("TypeError for ", parsed)
         raise
