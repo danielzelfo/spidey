@@ -1,6 +1,7 @@
 from utils import get_logger
 from crawler.frontier import Frontier
 from crawler.worker import Worker
+import scraper
 
 class Crawler(object):
     def __init__(self, config, restart, frontier_factory=Frontier, worker_factory=Worker):
@@ -9,6 +10,7 @@ class Crawler(object):
         self.frontier = frontier_factory(config, restart)
         self.workers = list()
         self.worker_factory = worker_factory
+        scraper.init(self.config)
 
     def start_async(self):
         self.workers = [
@@ -20,6 +22,7 @@ class Crawler(object):
     def start(self):
         self.start_async()
         self.join()
+        scraper.save_blacklist(self.config.blacklist_file)
 
     def join(self):
         for worker in self.workers:
