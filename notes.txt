@@ -48,6 +48,8 @@ SOLUTIONS:
                     ex: 1. ratio number of tags vs number of tokens
                         2. frequency of tokens that are real words (more processing)
             avoid traps
+
+        improve is_valid, 
     
     robots.txt - 
         blacklist disallowed (temporary blacklist)
