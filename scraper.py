@@ -12,6 +12,48 @@ import robotparser
 urllib.robotparser.Entry = robotparser.Entry
 urllib.robotparser.RuleLine = robotparser.RuleLine
 
+class SubdomainInfo:
+    class SubdomainEntry:
+        def __init__(self, netloc):
+            self.netloc = netloc
+            self.robots = None
+        
+        def canFetch(self, url):
+            return self.robots is None or self.robots.can_fetch('*', url)
+
+        def process_robots(self, url):
+            robotsurl = url.split(self.netloc)[0] + self.netloc+"/robots.txt"
+
+            resp = download(robotsurl, config)
+            time.sleep(config.time_delay)
+
+            if resp.status != 200:
+                return
+
+            ab_path = os.path.join(os.getcwd(), config.robots_file)
+            with open(ab_path, "wb") as f:
+                f.write(resp.raw_response.content)
+            
+            self.robots = urllib.robotparser.RobotFileParser()
+            self.robots.set_url("file://"+ab_path)
+            self.robots.read()
+            
+            os.unlink(ab_path)
+
+    def __init__(self):
+        self.data = {}
+    
+    def process_url(self, url):
+        netloc = urlparse(url).netloc
+        if not netloc in self.data:
+            print("NEWSUBDOMAIN:", netloc)
+            subdomainEntry = self.SubdomainEntry(netloc)
+            subdomainEntry.process_robots(url)
+            self.data[netloc] = subdomainEntry
+            return subdomainEntry
+        
+        return self.data[netloc]
+
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
@@ -28,42 +70,8 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
 blacklist = {}
 temp_blacklist = {}
 
-robotsDict = {}
-
 config = None
-
-def cacheRobots(url):
-    
-    netloc = urlparse(url).netloc
-    if not netloc in robotsDict:
-        robotsurl = url.split(netloc)[0] + netloc+"/robots.txt"
-        resp = download(robotsurl, config)
-        if resp.status != 200:
-            robotsDict[netloc] = None
-            return None
-        
-        time.sleep(config.time_delay)
-
-        ab_path = os.path.join(os.getcwd(), "TEMP_ROBOTS.txt")
-        with open(ab_path, "wb") as f:
-            f.write(resp.raw_response.content)
-        
-        rp = urllib.robotparser.RobotFileParser()
-        rp.set_url("file://"+ab_path)
-        rp.read()
-        rrate = rp.request_rate("")
-        rp.crawl_delay("")
-
-        robotsDict[netloc] = rp
-    
-    return robotsDict[netloc]
-
-def robotsCanFetch(url):
-    rp = cacheRobots(url)
-    if rp is None:
-        return True
-    
-    return rp.can_fetch('*', url)
+subdomainInfo = SubdomainInfo()
 
 # initialize scraper
 #   blacklist pattern list
@@ -91,7 +99,7 @@ def getPathRepeat(urlpath):
 
 def scraper(url, resp, frontier):
     links = extract_next_links(url, resp, frontier)
-    return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and robotsCanFetch(link)]
+    return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and subdomainInfo.process_url(link).canFetch(link)]
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
