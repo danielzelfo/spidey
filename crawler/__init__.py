@@ -22,6 +22,7 @@ class Crawler(object):
     def start(self):
         self.start_async()
         self.join()
+        scraper.print_info()
         scraper.save_blacklist(self.config.blacklist_file)
 
     def join(self):

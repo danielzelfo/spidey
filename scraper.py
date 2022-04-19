@@ -9,6 +9,11 @@ import robotparser
 
 blacklist = {}
 temp_blacklist = {}
+unique_urls = set()
+
+token_list = []
+longest_page = ""
+longest_cnt = 0
 
 config = None
 frontier = None
@@ -82,6 +87,20 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
 
+# English stopwords
+stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
+            "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
+            "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for",
+            "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's",
+            "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
+            "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't",
+            "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours",
+            "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so",
+            "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's",
+            "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until",
+            "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when",
+            "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
+            "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
@@ -98,6 +117,12 @@ def init(tconfig, tfrontier):
                 pattern = pattern.strip()
                 blacklist[pattern] = re.compile(pattern)
 
+
+def print_info():
+    print(Counter(token_list).most_common(50))
+    print(f"Number of unique urls: {len(unique_urls)}")
+    print("longest page:" + longest_page)
+
 # saves blacklist pattern list to file path provided
 def save_blacklist(blacklistsavepath):
     with open(blacklistsavepath, "w") as f:
@@ -108,6 +133,24 @@ def getPathRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
     return [key for key,value in dict1.items() if value > config.path_repeat_threshold]
+
+# Tokenize a string into a list of words and put into token list, also finding the longest page
+def tokenizer(string, url):
+    global longest_page
+    global longest_cnt
+    string = string.lower()
+    lst = re.split(r'[\s]+', string)
+    for word in stopwords:
+        if word in lst:
+            lst.remove(word)
+
+    # Compare this page's content with the longest page
+    if len(lst) >= longest_cnt:
+        longest_page = url
+        longest_cnt = len(lst)
+    token_list.extend(lst)
+    return None
+
 def allurlchecks(url):
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
 
@@ -115,9 +158,9 @@ def response_invalid(resp):
     return resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url)
   
 
-def scraper(url, resp, frontier):
-    links = extract_next_links(url, resp, frontier)
-    return list(set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link)))
+def scraper(url, resp):
+    links = extract_next_links(url, resp)
+    return set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
 
 
 def absolute_url(page_url, outlink_url):
@@ -151,6 +194,20 @@ def extract_next_links(url, resp):
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
     except:
         return set()
+
+    # Extract text from the page
+    text = ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
+
+    # Tokenize the text and add to token list
+    tokenizer(text,url)
+
+    extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
+    
+    #Add this url to unique urls
+    unique_urls.add(url)
+
+    return extracted
+    
 
 
     return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
