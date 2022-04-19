@@ -151,7 +151,7 @@ def extract_next_links(url, resp):
     except:
         return set()
 
-    extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
+    extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
     return extracted
     
