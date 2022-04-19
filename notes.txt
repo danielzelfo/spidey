@@ -1,24 +1,26 @@
 
 TODO:
 
-    1. trap detection (see solutions below)
+    1. 
+        trap detection -- webpages with queries (see solutions below)
+        use text similartity algorithm on tokens
+    
+    2. 
+        add loc tag inner xml for xml pages
 
-    2.
+    3.
         function - takes page url for each page
         keep track of list of subdomains (use urlparse netloc)
             number of unique pages in each subdomain (ordered by freq / alpha )
     
-    3.
+    4.
         global url variable - max page size (tokens)
     
-    4.
+    5.
         function - takes page content for each page
         50 most common words
             order by freq / alpha
             eliminate stop words
-    
-    5.
-        robots.txt / sitemap.txt (see solutions below)
     
     6.
         multithread
