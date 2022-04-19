@@ -113,6 +113,12 @@ def init(tconfig, tfrontier):
                 pattern = pattern.strip()
                 blacklist[pattern] = re.compile(pattern)
 
+
+def print_info():
+    print(Counter(token_list).most_common(50))
+    print("Number of unique urls:" + len(unique_urls))
+    print("longest page:" + longest_page)
+
 # saves blacklist pattern list to file path provided
 def save_blacklist(blacklistsavepath):
     with open(blacklistsavepath, "w") as f:
