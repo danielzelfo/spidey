@@ -20,6 +20,10 @@ TODO:
         keep track of list of subdomains (use urlparse netloc)
             number of unique pages in each subdomain (ordered by freq / alpha )
     
+    3.
+        blacklist
+           low information pages
+           pages that dont return status 200
 
 
 SOLUTIONS: 
