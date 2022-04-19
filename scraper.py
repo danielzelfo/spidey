@@ -66,7 +66,7 @@ def robotsCanFetch(url):
     return rp.can_fetch('*', url)
 
 # initialize scraper
-#   blacklist pattern list
+#  blacklist pattern list
 #   
 def init(tconfig):
     global config
@@ -90,8 +90,9 @@ def getPathRepeat(urlpath):
     return [key for key,value in dict1.items() if value > config.path_repeat_threshold]
 
 def scraper(url, resp, frontier):
-    links = sort_by_query(extract_next_links(url, resp, frontier))
-    return [link for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and robotsCanFetch(link)]
+    links = extract_next_links(url, resp, frontier)
+    
+    return list(set(sort_by_query(link) for link in links if is_valid(link) and not is_blacklisted(link) and not is_trap(link, frontier) and robotsCanFetch(link)))
 
 def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
@@ -125,32 +126,26 @@ def extract_next_links(url, resp, frontier):
     except:
         return set()
 
-    extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
+    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href')])
     
-    return extracted
-    
-
-# sort_by_query will sort querys
-# remove any urls with same query parameters
-# pointless to run if majority of links have no query parameters
-def sort_by_query(links):
-    sorted_links = set() # Return 
-
-    for url in links:
-        parsed = urlparse(url)
-        # extract/sort query 
-        query = parsed.query.split("&")
+# sort_by_query will sort a link by querys
+# returns a single url with a sorted query
+def sort_by_query(link):
+    parsed = urlparse(link)
+    # extract query 
+    query = parsed.query.split("&")
+    #only sort if query has more than 2 or more parameters
+    if(len(query) >= 2):
+        #sort query 
         query.sort()
-
+        #build new query with sorted parameters
         query_string = "&".join(query)
-        
-        # url with sorted query
-        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment))
-
-        #adding to set removes duplicates
-        sorted_links.add(new_url)
-    
-    return list(sorted_links)
+        #new url with sorted query
+        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment)) 
+        return new_url
+    else:
+        return link
+   
 
 # check if a url is blacklisted
 #   uses the permanent and temporary blacklists
