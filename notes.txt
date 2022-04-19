@@ -4,26 +4,22 @@ TODO:
     1. 
         trap detection -- webpages with queries (see solutions below)
         use text similartity algorithm on tokens
-    
-    2. 
-        add loc tag inner xml for xml pages
+        can use temporary blacklist?
+        
+            use a dictionary of urls as keys (no query)
+                value = list of tokens / counter
+                
+                when the counter reaches the threshold, stop crawling urls that that with the key
+        
+        text-similarity
+            function of two lists
+                 return a float (0-1)
 
-    3.
+    2.
         function - takes page url for each page
         keep track of list of subdomains (use urlparse netloc)
             number of unique pages in each subdomain (ordered by freq / alpha )
     
-    4.
-        global url variable - max page size (tokens)
-    
-    5.
-        function - takes page content for each page
-        50 most common words
-            order by freq / alpha
-            eliminate stop words
-    
-    6.
-        multithread
 
 
 SOLUTIONS: 
