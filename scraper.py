@@ -116,7 +116,7 @@ def init(tconfig, tfrontier):
 
 def print_info():
     print(Counter(token_list).most_common(50))
-    print("Number of unique urls:" + len(unique_urls))
+    print(f"Number of unique urls: {len(unique_urls)}")
     print("longest page:" + longest_page)
 
 # saves blacklist pattern list to file path provided
