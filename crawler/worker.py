@@ -5,6 +5,7 @@ from utils.download import download
 from utils import get_logger
 import scraper
 import time
+from collections import Counter
 
 
 class Worker(Thread):
@@ -17,10 +18,14 @@ class Worker(Thread):
         super().__init__(daemon=True)
         
     def run(self):
+        global longest_page
         while True:
             tbd_url = self.frontier.get_tbd_url()
             if not tbd_url:
                 self.logger.info("Frontier is empty. Stopping Crawler.")
+                print(Counter(token_list).most_common(50))
+                print("Number of unique urls:" + len(unique_urls))
+                print("longest page:" + longest_page)
                 break
             resp = download(tbd_url, self.config, self.logger)
             self.logger.info(
