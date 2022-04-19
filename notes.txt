@@ -23,7 +23,7 @@ TODO:
     3.
         blacklist
            low information pages
-                 (num html tags) / (num html tags + num of tokens) < 0.7
+                 (num html tags) / (num html tags + num of tokens) > 0.7
            pages that dont return status 200
                
 
