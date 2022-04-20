@@ -43,7 +43,7 @@ class SubdomainInfo:
             
             self.robots = robotparser.RobotFileParser()
             self.robots.set_url("file://"+ab_path)
-            self.robots.read()            
+            self.robots.read()
             os.unlink(ab_path)
 
             for sitemapurl in self.robots.site_maps():
@@ -66,30 +66,35 @@ class SubdomainInfo:
         self.icssubdomains = []
     
     def process_url(self, url):
-        netloc = urlparse(url).netloc        
+        netloc = urlparse(url).netloc
         if not netloc in self.data:
             print("NEWSUBDOMAIN:", netloc)
             subdomainEntry = self.SubdomainEntry(netloc)
             subdomainEntry.process_robots(url)
             self.data[netloc] = subdomainEntry
 
-            if netloc.endswith("ics.uci.edu"):
+            if netloc == "ics.uci.edu" or netloc.endswith(".ics.uci.edu"):
                 self.icssubdomains.append(netloc)
 
             return subdomainEntry
         
         return self.data[netloc]
-    
-    def addToIcsSubDomain(self, url):
+
+    def countUrl(self, url):
         netloc = urlparse(url).netloc
-        if netloc.endswith("ics.uci.edu"):
-            self.data[netloc].num_urls += 1
+        if not netloc in self.data:
+            return #this shouldn't happen
+        
+        self.data[netloc].num_urls += 1
 
     # print all sub
-    def showAllICSSubDomains(self):
-        print("\n".join( [f"{x[0]}, {x[1]}" for x in sorted([(subdomain, self.data[subdomain].num_urls) for subdomain in self.icssubdomains], key=lambda item: [-1*item[1], item[0]])] ))
+    def showAllICSSubDomainUrlCounts(self):
+        icsSubdomainUrlCounts = dict(zip(self.icssubdomains, [self.data[subdomain].num_urls for subdomain in self.icssubdomains]))
+        
+        print( "\n".join([ ", ".join((s_item[0], str(s_item[1])))
+                        for s_item in sorted( icsSubdomainUrlCounts.items(), key=lambda item: (-1*item[1], item[0]) ) ]) )
 
-temp = re.compile(r"^([-a-z0-9]+\.)*(cs\.uci\.edu|stat\.uci\.edu)")
+temp = re.compile(r"^([-a-z0-9]+\.)*(ics\.uci\.edu|stat\.uci\.edu)")
 scheme_pattern = re.compile(r"^https?$")
 # netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
 #                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
@@ -138,7 +143,7 @@ def print_info():
     print(f"Number of unique urls: {len(unique_urls)}")
     print("longest page:" + longest_page)
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
-    subdomainInfo.showAllICSSubDomains()
+    subdomainInfo.showAllICSSubDomainUrlCounts()
 
 # saves blacklist pattern list to file path provided
 def save_blacklist(blacklistsavepath):
@@ -175,10 +180,15 @@ def response_invalid(resp):
     return resp.status != 200 or not resp.raw_response or not resp.raw_response.content
 
 def add_url_to_blacklist(url):
-    print("BLACKLISTED:", url)
     patternstr = f"^{re.escape(url)}$"
-    regex = re.compile(patternstr)
-    blacklist[patternstr] = regex
+    add_pattern_to_blacklist(patternstr)
+    
+def add_pattern_to_blacklist(pattern, cancel_frontier=False):
+    print("BLACKLISTED:", pattern)
+    regex = re.compile(pattern)
+    blacklist[pattern] = regex
+    if cancel_frontier:
+        frontier.cancel_urls(regex)
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -222,7 +232,7 @@ def extract_next_links(url, resp):
         add_url_to_blacklist(url)
         return set()
     
-    subdomainInfo.addToIcsSubDomain(url)
+    subdomainInfo.countUrl(url)
 
     # Extract text from the page
     text = ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
@@ -236,12 +246,6 @@ def extract_next_links(url, resp):
     unique_urls.add(url)
 
     return extracted
-    
-
-
-    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
-
-
     
 # sort_by_query will sort a link by querys
 # returns a single url with a sorted query
@@ -290,17 +294,18 @@ def is_trap(url):
     repeats = getPathRepeat(urlpath)
     if len(repeats) != 0:
         urlpart = url[:min(url.find(repeat) for repeat in repeats)-1]
-        print("BLACKLISTED:", f"{urlpart}*")
+        
         patternstr = f"^{re.escape(urlpart)}.*"
-        regex = re.compile(patternstr)
+
+        #delete blacklisted patterns that are included in the new pattern
         todel = []
         for pattern in blacklist:
             if pattern.startswith(patternstr[:-2]):
                 todel.append(pattern)
         for p in todel:
             del blacklist[p]
-        blacklist[patternstr] = regex
-        frontier.cancel_urls(regex)
+        
+        add_pattern_to_blacklist(patternstr, True)
 
         for r in repeats:
             pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
