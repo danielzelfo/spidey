@@ -1,6 +1,7 @@
 import re
 from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
+from lxml import etree
 from collections import Counter
 import os
 from utils.download import download
@@ -150,15 +151,15 @@ def tokenizer(string, url):
     token_list.extend(lst)
     return lst
 
-def countTag(content):
-    content = content.decode('utf-8')
-    lst = re.findall(r"(<p>)|(<h1>)|(<h2>)|(<h3>)|(<h4>)|(<h5>)|(<h6>)", content)
-    return len(lst)
+def countTags(tree):
+    head = tree.cssselect('html')[0]
+    return len(head.xpath(".//*"))
 
 def isLowValue(wordCnt, tagCnt):
     num = tagCnt / (tagCnt + wordCnt)
     if num > 0.7:
         return 1
+    return 0
 
 def allurlchecks(url):
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
@@ -214,15 +215,20 @@ def extract_next_links(url, resp):
         return set()
 
     # Extract text from the page
-    text = ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6]'))
-    # text2 = ' '.join(e.text_content() for e in tree.xpath('//*[self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6]')) 
-    tagCnt = countTag(resp.raw_response.content)
+    text = ' '.join(e.text_content() for e in tree.xpath('//*[self::li or self::br or self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
+    
+    # Count the amount of tags
+    tagCnt = countTags(tree)
+    
 
     # Tokenize the text and add to token list
     lst = tokenizer(text,url)
 
     # Check if the webpage is low value
     if isLowValue(len(lst), tagCnt):
+        add_url_to_blacklist(url)
+        if resp.url != url:
+            add_url_to_blacklist(resp.url)
         return set()
     
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
