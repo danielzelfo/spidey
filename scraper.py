@@ -159,7 +159,7 @@ def textSimilarity(footprint1, footprint2):
         if footprint1[i] == footprint2[i]:
             counter += 1
     similarity = counter/32
-    
+
     if similarity >= .80:
         print("Texts are near or exact duplicate!")
     return similarity
@@ -304,6 +304,7 @@ def check_similiar_queries(url, tokens):
             if(query_dict[current_key][1] >= 3):
                 temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
                 temporarily_blacklist(temp_blacklist_url)
+                del query_dict[current_key]
             else:
                 counter = query_dict[current_key][1]
                 query_dict[current_key] = [text, counter + 1]
