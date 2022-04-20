@@ -7,6 +7,7 @@ from utils.download import download
 import time
 import robotparser
 
+
 blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
@@ -149,7 +150,44 @@ def tokenizer(string, url):
         longest_page = url
         longest_cnt = len(lst)
     token_list.extend(lst)
-    return None
+    return lst
+
+def textSimilarity(footprint1, footprint2):
+    counter = 0
+    for i in range(len(footprint1)):
+        if footprint1[i] == footprint2[i]:
+            counter += 1
+    similarity = counter/32
+    if similarity >= .80:
+        print("Texts are near or exact duplicate!")
+
+def getFootprint(lst):
+    dict1 = computeWordFrequencies(lst)
+    keys = list(dict1.keys())
+    vector = [0] * 32
+    for i in keys:
+        key = i
+        i = format(hash(i), '0>42b')[-32:]                      #hash tokens into 32 bit
+    for j in range(len(vector)):
+        if i[j] == "1":
+            vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
+        else:                                                             
+            vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
+    for i in range(len(vector)):
+        if vector[i] >= 1:
+            vector[i] = 1                                       #if index is positive, set vector[index]=1
+        else:
+            vector[i] = 0                                       #if index is negative, set vector[index]=0
+    return vector
+
+def computeWordFrequencies(alist):
+    adict = dict()
+    for i in alist:
+        if i not in adict.keys():
+            adict[i] = 1
+        elif i in adict.keys():
+            adict[i] = adict[i] + 1 
+    return adict
 
 def allurlchecks(url):
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
