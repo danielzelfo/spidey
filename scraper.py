@@ -1,4 +1,5 @@
 import re
+from urllib.request import urlopen
 from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
 from collections import Counter
@@ -7,9 +8,11 @@ from utils.download import download
 import time
 import robotparser
 
+
 blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
+query_dict = {}
 
 token_list = []
 longest_page = ""
@@ -104,7 +107,7 @@ stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "a
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
-#  blacklist pattern list
+# blacklist pattern list
 #   
 def init(tconfig, tfrontier):
     global config, frontier
@@ -152,6 +155,7 @@ def tokenizer(string, url):
     return None
 
 def allurlchecks(url):
+    check_similiar_queries(url)
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
 
 def response_invalid(resp):
@@ -159,6 +163,7 @@ def response_invalid(resp):
   
 
 def scraper(url, resp):
+    query_dict = {} # A dictionary of urls as keys (no query)
     links = extract_next_links(url, resp)
     return set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
 
@@ -194,10 +199,9 @@ def extract_next_links(url, resp):
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
     except:
         return set()
-
-    # Extract text from the page
-    text = ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
-
+    
+    #extract text
+    text = extract_text(tree)
     # Tokenize the text and add to token list
     tokenizer(text,url)
 
@@ -207,12 +211,6 @@ def extract_next_links(url, resp):
     unique_urls.add(url)
 
     return extracted
-    
-
-
-    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
-
-
     
 # sort_by_query will sort a link by querys
 # returns a single url with a sorted query
@@ -231,7 +229,45 @@ def sort_by_query(link):
         return new_url
     else:
         return link
-   
+
+def extract_text(tree):
+    # Extract text from the page
+    return ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
+
+# Uses text similiarity to check if url with specfic queries
+# is similiar to previously scraped urls. Temp Blacklists those
+# when a certain threshold is reached.
+def check_similiar_queries(url):
+    global query_dict
+    counter_threshold = 3
+
+    #parse url
+    parsed = urlparse(url)
+    netloc = parsed.netloc
+    path = parsed.path
+    query = parsed.query
+    
+    #open url and extract text
+    try:
+        resp = download(url, config)
+        tree = html.fromstring(resp.raw_response.content)
+        text = extract_text(tree)
+    except:
+        return
+
+    current_key = netloc + path
+    #check if url exists in query dict
+    if(netloc in query_dict.keys()):
+        #if (compare url text with query_dict[netloc][0] (text)):
+        if(query_dict[current_key][1] >= 3):
+            temp_blacklist_url = urlunsplit(parsed.scheme, parsed.netloc) 
+            temp_blacklist.add(temp_blacklist_url)
+        else:
+            counter = query_dict[current_key][1]
+            query_dict[current_key] = [text, counter]
+    else:
+        query_dict[current_key] = [text, 0]
+
 
 # check if a url is blacklisted
 #   uses the permanent and temporary blacklists
