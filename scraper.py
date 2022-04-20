@@ -86,7 +86,7 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|scm)$")
 
 # English stopwords
 stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
@@ -152,7 +152,10 @@ def tokenizer(string, url):
     return lst
 
 def countTags(tree):
-    head = tree.cssselect('html')[0]
+    try:
+        head = tree.cssselect('html')[0]
+    except IndexError:
+        return 10000
     return len(head.xpath(".//*"))
 
 def isLowValue(wordCnt, tagCnt):
