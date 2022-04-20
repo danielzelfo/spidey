@@ -1,7 +1,7 @@
-https\:\/\/www\.ics\.uci\.edu\/community\/alumni\/index\.php.*
-https\:\/\/www\.ics\.uci\.edu\/alumni.*
-http\:\/\/www\.cert\.ics\.uci\.edu.*
-http\:\/\/ics\.uci\.edu\/about\/employment.*
-https\:\/\/evoke\.ics\.uci\.edu\/https\:\/\/mojrian\.net\/\/mojrian\.net.*
-https\:\/\/www\.ics\.uci\.edu\/ugrad\/honors\/index\.php.*
-https\:\/\/www\.ics\.uci\.edu\/honors.*
+^https\:\/\/www\.ics\.uci\.edu\/community\/alumni\/index\.php.*
+^https\:\/\/www\.ics\.uci\.edu\/alumni.*
+^http\:\/\/www\.cert\.ics\.uci\.edu.*
+^http\:\/\/ics\.uci\.edu\/about\/employment.*
+^https\:\/\/evoke\.ics\.uci\.edu\/https\:\/\/mojrian\.net\/\/mojrian\.net.*
+^https\:\/\/www\.ics\.uci\.edu\/ugrad\/honors\/index\.php.*
+^https\:\/\/www\.ics\.uci\.edu\/honors.*
