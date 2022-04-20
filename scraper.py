@@ -159,8 +159,10 @@ def textSimilarity(footprint1, footprint2):
         if footprint1[i] == footprint2[i]:
             counter += 1
     similarity = counter/32
+    
     if similarity >= .80:
         print("Texts are near or exact duplicate!")
+    return similarity
 
 def getFootprint(lst):
     dict1 = computeWordFrequencies(lst)
@@ -191,7 +193,6 @@ def computeWordFrequencies(alist):
     return adict
 
 def allurlchecks(url):
-    check_similiar_queries(url)
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
 
 def response_invalid(resp):
@@ -248,7 +249,9 @@ def extract_next_links(url, resp):
     #extract text
     text = extract_text(tree)
     # Tokenize the text and add to token list
-    tokenizer(text,url)
+    tokens = tokenizer(text,url)
+    if "?" in url:
+        check_similiar_queries(url, tokens)
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
@@ -282,7 +285,7 @@ def extract_text(tree):
 # Uses text similiarity to check if url with specfic queries
 # is similiar to previously scraped urls. Temp Blacklists those
 # when a certain threshold is reached.
-def check_similiar_queries(url):
+def check_similiar_queries(url, tokens):
     global query_dict
     counter_threshold = 3
 
@@ -291,25 +294,21 @@ def check_similiar_queries(url):
     netloc = parsed.netloc
     path = parsed.path
     query = parsed.query
-    
-    #open url and extract text
-    try:
-        resp = download(url, config)
-        tree = html.fromstring(resp.raw_response.content)
-        text = extract_text(tree)
-    except:
-        return
 
+    text = getFootprint(tokens)
     current_key = netloc + path
+
     #check if url exists in query dict
-    if(netloc in query_dict.keys()):
-        #if (compare url text with query_dict[netloc][0] (text)):
-        if(query_dict[current_key][1] >= 3):
-            temp_blacklist_url = urlunsplit(parsed.scheme, parsed.netloc) 
-            temp_blacklist.add(temp_blacklist_url)
+    if(current_key in query_dict):
+        if textSimilarity(text, query_dict[current_key][0]) > 0.8:
+            if(query_dict[current_key][1] >= 3):
+                temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
+                temporarily_blacklist(temp_blacklist_url)
+            else:
+                counter = query_dict[current_key][1]
+                query_dict[current_key] = [text, counter + 1]
         else:
-            counter = query_dict[current_key][1]
-            query_dict[current_key] = [text, counter]
+            query_dict[current_key][1] //= 2
     else:
         query_dict[current_key] = [text, 0]
 
@@ -356,12 +355,16 @@ def is_trap(url):
 
         for r in repeats:
             pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
-            tempregex = re.compile(pattern)
-            temp_blacklist[pattern] = tempregex
-            frontier.cancel_urls(tempregex) 
+            temporarily_blacklist(pattern)
            
         return True
     return False
+
+def temporarily_blacklist(regexpattern):
+    print(f"TEMP BLACKLIST {regexpattern}")
+    tempregex = re.compile(regexpattern)
+    temp_blacklist[regexpattern] = tempregex
+    frontier.cancel_urls(tempregex) 
 
 # check if the scheme, netloc, and path of the url are valid
 def is_valid(url):
