@@ -36,7 +36,7 @@ class SubdomainInfo:
             resp = download(robotsurl, config)
             time.sleep(config.time_delay)
 
-            if response_invalid(resp):
+            if response_invalid(resp) or not is_valid(resp.url):
                 return
 
             ab_path = os.path.join(os.getcwd(), config.robots_file)
@@ -54,7 +54,7 @@ class SubdomainInfo:
                 if sitemapurl.lower().endswith(".txt"):
                     resp = download(sitemapurl, config)
                     time.sleep(config.time_delay)
-                    if not response_invalid(resp):
+                    if not (response_invalid(resp) or not is_valid(resp.url)):
                         for fromsitemaptxt in resp.raw_response.content.splitlines():
                             frontier.add_url(fromsitemaptxt)
                             print("FRONTIER ADDED:", fromsitemaptxt)
@@ -120,7 +120,6 @@ def init(tconfig, tfrontier):
                 pattern = pattern.strip()
                 blacklist[pattern] = re.compile(pattern)
 
-
 def print_info():
     print(Counter(token_list).most_common(50))
     print(f"Number of unique urls: {len(unique_urls)}")
@@ -152,15 +151,57 @@ def tokenizer(string, url):
         longest_page = url
         longest_cnt = len(lst)
     token_list.extend(lst)
-    return None
+    return lst
+
+def textSimilarity(footprint1, footprint2):
+    counter = 0
+    for i in range(len(footprint1)):
+        if footprint1[i] == footprint2[i]:
+            counter += 1
+    similarity = counter/32
+    if similarity >= .80:
+        print("Texts are near or exact duplicate!")
+
+def getFootprint(lst):
+    dict1 = computeWordFrequencies(lst)
+    keys = list(dict1.keys())
+    vector = [0] * 32
+    for i in keys:
+        key = i
+        i = format(hash(i), '0>42b')[-32:]                      #hash tokens into 32 bit
+    for j in range(len(vector)):
+        if i[j] == "1":
+            vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
+        else:                                                             
+            vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
+    for i in range(len(vector)):
+        if vector[i] >= 1:
+            vector[i] = 1                                       #if index is positive, set vector[index]=1
+        else:
+            vector[i] = 0                                       #if index is negative, set vector[index]=0
+    return vector
+
+def computeWordFrequencies(alist):
+    adict = dict()
+    for i in alist:
+        if i not in adict.keys():
+            adict[i] = 1
+        elif i in adict.keys():
+            adict[i] = adict[i] + 1 
+    return adict
 
 def allurlchecks(url):
     check_similiar_queries(url)
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
 
 def response_invalid(resp):
-    return resp.status != 200 or not resp.raw_response or not resp.raw_response.content or not is_valid(resp.url)
-  
+    return resp.status != 200 or not resp.raw_response or not resp.raw_response.content
+
+def add_url_to_blacklist(url):
+    print("BLACKLISTED:", url)
+    patternstr = f"^{re.escape(url)}$"
+    regex = re.compile(patternstr)
+    blacklist[patternstr] = regex
 
 def scraper(url, resp):
     query_dict = {} # A dictionary of urls as keys (no query)
@@ -185,10 +226,14 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
 
     if response_invalid(resp):
+        add_url_to_blacklist(url)
+        if resp.url != url:
+            add_url_to_blacklist(resp.url)
         return set()
     
     # check if redirect is blacklisted
-    if resp.url != url and is_blacklisted(resp.url):
+    if resp.url != url and is_blacklisted(resp.url) or not is_valid(resp.url):
+        add_url_to_blacklist(url)
         return set()
     
     # check if redirect is a trap
@@ -297,7 +342,8 @@ def is_trap(url):
     repeats = getPathRepeat(urlpath)
     if len(repeats) != 0:
         urlpart = url[:min(url.find(repeat) for repeat in repeats)-1]
-        patternstr = f"{re.escape(urlpart)}.*"
+        print("BLACKLISTED:", f"{urlpart}*")
+        patternstr = f"^{re.escape(urlpart)}.*"
         regex = re.compile(patternstr)
         todel = []
         for pattern in blacklist:
