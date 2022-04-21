@@ -100,10 +100,9 @@ class SubdomainInfo:
         print( "\n".join([ ", ".join((s_item[0], str(s_item[1])))
                         for s_item in sorted( icsSubdomainUrlCounts.items(), key=lambda item: (-1*item[1], item[0]) ) ]) )
 
-temp = re.compile(r"^([-a-z0-9]+\.)*(ics\.uci\.edu|stat\.uci\.edu)")
 scheme_pattern = re.compile(r"^https?$")
-# netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
-#                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
+netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
+                            +r"|today\.uci\.edu\/department\/information_computer_sciences$")
 # Extensions not being crawled
 bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -132,7 +131,7 @@ subdomainInfo = SubdomainInfo()
 
 # initialize scraper
 # blacklist pattern list
-#   
+#
 def init(tconfig, tfrontier):
     global config, frontier
     config = tconfig
@@ -183,7 +182,7 @@ def tokenizer(string, url):
 def isLowValue(tagCount, tokenCount):
     if tagCount > 3:
         if tokenCount/tagCount < 0.5 and tokenCount < 300:
-            return True      
+            return True
     else:
         #tags <html><body><p> are added to pages with no tags
         #assuming text file
@@ -212,7 +211,7 @@ def getFootprint(lst):
     for j in range(len(vector)):
         if i[j] == "1":
             vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
-        else:                                                             
+        else:
             vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
     for i in range(len(vector)):
         if vector[i] >= 1:
@@ -227,7 +226,7 @@ def computeWordFrequencies(alist):
         if i not in adict.keys():
             adict[i] = 1
         elif i in adict.keys():
-            adict[i] = adict[i] + 1 
+            adict[i] = adict[i] + 1
     return adict
 
 def allurlchecks(url):
@@ -322,16 +321,16 @@ def extract_next_links(url, resp):
 # returns a single url with a sorted query
 def sort_by_query(link):
     parsed = urlparse(link)
-    # extract query 
+    # extract query
     query = parsed.query.split("&")
     #only sort if query has more than 2 or more parameters
     if(len(query) >= 2):
-        #sort query 
+        #sort query
         query.sort()
         #build new query with sorted parameters
         query_string = "&".join(query)
         #new url with sorted query
-        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment)) 
+        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment))
         return new_url
     else:
         return link
@@ -423,17 +422,17 @@ def temporarily_blacklist(regexpattern):
     print(f"TEMP BLACKLIST {regexpattern}")
     tempregex = re.compile(regexpattern)
     temp_blacklist[regexpattern] = tempregex
-    frontier.cancel_urls(tempregex) 
+    frontier.cancel_urls(tempregex)
 
 # check if the scheme, netloc, and path of the url are valid
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        return (scheme_pattern.match(parsed.scheme.lower()) 
-                and temp.match(parsed.netloc.lower()) 
+        return (scheme_pattern.match(parsed.scheme.lower())
+                and netloc_pattern.match(parsed.netloc.lower())
                 and not bad_ext_path_pattern.match(parsed.path.lower()))
     except TypeError:
         print ("TypeError for ", parsed)
