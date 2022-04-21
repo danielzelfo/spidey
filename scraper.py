@@ -10,7 +10,7 @@ import time
 import robotparser
 from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
-
+import json
 
 blacklist = {}
 temp_blacklist = {}
@@ -61,11 +61,8 @@ class SubdomainInfo:
                     if not (response_invalid(resp) or not is_valid(resp.url)):
                         for fromsitemaptxt in resp.raw_response.content.splitlines():
                             frontier.add_url(fromsitemaptxt)
-                            print("FRONTIER ADDED:", fromsitemaptxt)
                 elif allurlchecks(sitemapurl):
                     frontier.add_url(sitemapurl)
-                    print("FRONTIER ADDED:", sitemapurl)
-
 
     def __init__(self):
         self.data = {}
@@ -137,9 +134,9 @@ def init(tconfig, tfrontier):
 
     if os.path.exists(config.blacklist_file):
         with open(config.blacklist_file, "r") as f:
-            for pattern in f.readlines():
-                pattern = pattern.strip()
-                blacklist[pattern] = re.compile(pattern)
+            blacklist = json.load(f)
+        for reason in blacklist:
+            blacklist[reason] = {pattern: re.compile(pattern) for pattern in blacklist[reason]}
 
 def print_info():
     print(Counter(token_list).most_common(50))
@@ -151,7 +148,7 @@ def print_info():
 # saves blacklist pattern list to file path provided
 def save_blacklist(blacklistsavepath):
     with open(blacklistsavepath, "w") as f:
-        f.write("\n".join(blacklist.keys()))
+        json.dump({reason: list(blacklist[reason].keys()) for reason in blacklist}, f, indent=4)
 
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def getPathRepeat(urlpath):
@@ -233,14 +230,16 @@ def allurlchecks(url):
 def response_invalid(resp):
     return resp.status != 200 or not resp.raw_response or not resp.raw_response.content
 
-def add_url_to_blacklist(url):
+def add_url_to_blacklist(url, reason):
     patternstr = f"^{re.escape(url)}$"
-    add_pattern_to_blacklist(patternstr)
+    add_pattern_to_blacklist(patternstr, reason=reason)
     
-def add_pattern_to_blacklist(pattern, cancel_frontier=False):
-    print("BLACKLISTED:", pattern)
+def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
+    print("BLACKLISTED:", pattern, f"for reason [{reason}]")
+    if not reason in blacklist:
+        blacklist[reason] = {}
     regex = re.compile(pattern)
-    blacklist[pattern] = regex
+    blacklist[reason][pattern] = regex
     if cancel_frontier:
         frontier.cancel_urls(regex)
 
@@ -267,14 +266,14 @@ def extract_next_links(url, resp):
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
     
     if response_invalid(resp):
-        add_url_to_blacklist(url)
+        add_url_to_blacklist(url, "bad url")
         if resp.url != url:
-            add_url_to_blacklist(resp.url)
+            add_url_to_blacklist(resp.url, "bad url")
         return set()
     
     # check if redirect is blacklisted
     if resp.url != url and is_blacklisted(resp.url) or not is_valid(resp.url):
-        add_url_to_blacklist(url)
+        add_url_to_blacklist(url, "bad url")
         return set()
     
     # check if redirect is a trap
@@ -286,7 +285,6 @@ def extract_next_links(url, resp):
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
         soup = BS(resp.raw_response.content, "xml")
     except:
-        add_url_to_blacklist(url)
         return set()
 
     # Tokenize the text and add to token list
@@ -298,10 +296,9 @@ def extract_next_links(url, resp):
         tagCount = len(soup.findAll())
         tokenCount = len(tokens)
         if isLowValue(tagCount, tokenCount):
-            print("LOW INFO VALUE:", url)
-            add_url_to_blacklist(url)
+            add_url_to_blacklist(url, "low info value")
             if resp.url != url:
-                add_url_to_blacklist(resp.url)
+                add_url_to_blacklist(resp.url, "low info value")
             return set()
 
     # check other queries at same subdomain+path
@@ -312,6 +309,9 @@ def extract_next_links(url, resp):
     
     #Add this url to unique urls
     unique_urls.add(url)
+
+    #count url in subdomain
+    subdomainInfo.countUrl(url)
 
     return extracted
     
@@ -371,9 +371,10 @@ def check_similiar_queries(url, tokens):
 # check if a url is blacklisted
 #   uses the permanent and temporary blacklists
 def is_blacklisted(url):
-    for pattern in blacklist:
-        if blacklist[pattern].match(url):
-            return True
+    for reason in blacklist:
+        for pattern in blacklist[reason]:
+            if blacklist[reason][pattern].match(url):
+                return True
     for pattern in temp_blacklist:
         if temp_blacklist[pattern].match(url):
             return True
@@ -400,14 +401,15 @@ def is_trap(url):
         patternstr = f"^{re.escape(urlpart)}.*"
 
         #delete blacklisted patterns that are included in the new pattern
-        todel = []
-        for pattern in blacklist:
-            if pattern.startswith(patternstr[:-2]):
-                todel.append(pattern)
-        for p in todel:
-            del blacklist[p]
+        if "repeating path trap" in blacklist:
+            todel = []
+            for pattern in blacklist["repeating path trap"]:
+                if pattern.startswith(patternstr[:-2]):
+                    todel.append(pattern)
+            for p in todel:
+                del blacklist["repeating path trap"][p]
         
-        add_pattern_to_blacklist(patternstr, True)
+        add_pattern_to_blacklist(patternstr, True, "repeating path trap")
 
         for r in repeats:
             pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
