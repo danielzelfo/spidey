@@ -256,7 +256,7 @@ def absolute_url(page_url, outlink_url):
     # join urls | note: if outlink_url is an absolute url, that url is used
     newurl = urljoin(page_url, outlink_url)
     # remove fragment
-    return urldefrag(newurl)[0].split("?")[0]
+    return urldefrag(newurl)[0]
 
 def extract_next_links(url, resp):
     # url: the URL that was used to get the page
