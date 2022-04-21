@@ -2,11 +2,14 @@ import re
 from urllib.request import urlopen
 from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
+from lxml import etree
 from collections import Counter
 import os
 from utils.download import download
 import time
 import robotparser
+from bs4 import BeautifulSoup as BS
+from bs4.element import Comment
 
 
 blacklist = {}
@@ -88,10 +91,10 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$")
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|scm|img)$")
 
 # English stopwords
-stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
+stopwords = {"a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
             "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
             "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for",
             "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's",
@@ -103,7 +106,7 @@ stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "a
             "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until",
             "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when",
             "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
-            "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]
+            "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"}
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
@@ -142,9 +145,10 @@ def tokenizer(string, url):
     global longest_cnt
     string = string.lower()
     lst = re.split(r'[\s]+', string)
-    for word in stopwords:
-        if word in lst:
-            lst.remove(word)
+
+    lst = list(filter(lambda a: not a in stopwords, lst))
+
+    lst = list(filter(lambda a: a != "", lst))
 
     # Compare this page's content with the longest page
     if len(lst) >= longest_cnt:
@@ -152,6 +156,17 @@ def tokenizer(string, url):
         longest_cnt = len(lst)
     token_list.extend(lst)
     return lst
+
+def isLowValue(tagCount, tokenCount):
+    if tagCount > 3:
+        if tokenCount/tagCount < 0.5 and tokenCount < 300:
+            return True      
+    else:
+        #tags <html><body><p> are added to pages with no tags
+        #assuming text file
+        if tokenCount < 300:
+            return True
+    return False
 
 def textSimilarity(footprint1, footprint2):
     counter = 0
@@ -225,7 +240,7 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-
+    
     if response_invalid(resp):
         add_url_to_blacklist(url)
         if resp.url != url:
@@ -241,15 +256,29 @@ def extract_next_links(url, resp):
     if resp.url != url and is_trap(resp.url):
         return set()
     
+    
     try:
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
+        soup = BS(resp.raw_response.content, "xml")
     except:
         return set()
     
-    #extract text
-    text = extract_text(tree)
     # Tokenize the text and add to token list
-    tokens = tokenizer(text,url)
+    text = extract_text(soup)
+    tokens = tokenizer(text, url)
+    
+    if len(soup.findAll("loc")) == 0: #sitemaps are not low value
+        # check if page is low value
+        tagCount = len(soup.findAll())
+        tokenCount = len(tokens)
+        if isLowValue(tagCount, tokenCount):
+            print("LOW INFO VALUE:", url)
+            add_url_to_blacklist(url)
+            if resp.url != url:
+                add_url_to_blacklist(resp.url)
+            return set()
+
+    check other queries at same subdomain+path
     if "?" in url:
         check_similiar_queries(url, tokens)
 
@@ -278,10 +307,9 @@ def sort_by_query(link):
     else:
         return link
 
-def extract_text(tree):
+def extract_text(soup):
     # Extract text from the page
-    return ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
-
+    return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
 # Uses text similiarity to check if url with specfic queries
 # is similiar to previously scraped urls. Temp Blacklists those
 # when a certain threshold is reached.
