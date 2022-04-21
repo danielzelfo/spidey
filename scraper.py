@@ -29,6 +29,7 @@ class SubdomainInfo:
         def __init__(self, netloc):
             self.netloc = netloc
             self.robots = None
+            self.num_urls = 0
         
         def canFetch(self, url):
             return self.robots is None or self.robots.can_fetch('*', url)
@@ -48,7 +49,7 @@ class SubdomainInfo:
             
             self.robots = robotparser.RobotFileParser()
             self.robots.set_url("file://"+ab_path)
-            self.robots.read()            
+            self.robots.read()
             os.unlink(ab_path)
 
             for sitemapurl in self.robots.site_maps():
@@ -68,6 +69,7 @@ class SubdomainInfo:
 
     def __init__(self):
         self.data = {}
+        self.icssubdomains = []
     
     def process_url(self, url):
         netloc = urlparse(url).netloc
@@ -76,9 +78,27 @@ class SubdomainInfo:
             subdomainEntry = self.SubdomainEntry(netloc)
             subdomainEntry.process_robots(url)
             self.data[netloc] = subdomainEntry
+
+            if netloc == "ics.uci.edu" or netloc.endswith(".ics.uci.edu"):
+                self.icssubdomains.append(netloc)
+
             return subdomainEntry
         
         return self.data[netloc]
+
+    def countUrl(self, url):
+        netloc = urlparse(url).netloc
+        if not netloc in self.data:
+            return #this shouldn't happen
+        
+        self.data[netloc].num_urls += 1
+
+    # print all sub
+    def showAllICSSubDomainUrlCounts(self):
+        icsSubdomainUrlCounts = dict(zip(self.icssubdomains, [self.data[subdomain].num_urls for subdomain in self.icssubdomains]))
+        
+        print( "\n".join([ ", ".join((s_item[0], str(s_item[1])))
+                        for s_item in sorted( icsSubdomainUrlCounts.items(), key=lambda item: (-1*item[1], item[0]) ) ]) )
 
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
@@ -111,7 +131,7 @@ subdomainInfo = SubdomainInfo()
 
 # initialize scraper
 # blacklist pattern list
-#   
+#
 def init(tconfig, tfrontier):
     global config, frontier
     config = tconfig
@@ -127,6 +147,8 @@ def print_info():
     print(Counter(token_list).most_common(50))
     print(f"Number of unique urls: {len(unique_urls)}")
     print("longest page:" + longest_page)
+    print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
+    subdomainInfo.showAllICSSubDomainUrlCounts()
 
 # saves blacklist pattern list to file path provided
 def save_blacklist(blacklistsavepath):
@@ -160,7 +182,7 @@ def tokenizer(string, url):
 def isLowValue(tagCount, tokenCount):
     if tagCount > 3:
         if tokenCount/tagCount < 0.5 and tokenCount < 300:
-            return True      
+            return True
     else:
         #tags <html><body><p> are added to pages with no tags
         #assuming text file
@@ -189,7 +211,7 @@ def getFootprint(lst):
     for j in range(len(vector)):
         if i[j] == "1":
             vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
-        else:                                                             
+        else:
             vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
     for i in range(len(vector)):
         if vector[i] >= 1:
@@ -204,7 +226,7 @@ def computeWordFrequencies(alist):
         if i not in adict.keys():
             adict[i] = 1
         elif i in adict.keys():
-            adict[i] = adict[i] + 1 
+            adict[i] = adict[i] + 1
     return adict
 
 def allurlchecks(url):
@@ -214,10 +236,15 @@ def response_invalid(resp):
     return resp.status != 200 or not resp.raw_response or not resp.raw_response.content
 
 def add_url_to_blacklist(url):
-    print("BLACKLISTED:", url)
     patternstr = f"^{re.escape(url)}$"
-    regex = re.compile(patternstr)
-    blacklist[patternstr] = regex
+    add_pattern_to_blacklist(patternstr)
+    
+def add_pattern_to_blacklist(pattern, cancel_frontier=False):
+    print("BLACKLISTED:", pattern)
+    regex = re.compile(pattern)
+    blacklist[pattern] = regex
+    if cancel_frontier:
+        frontier.cancel_urls(regex)
 
 def scraper(url, resp):
     query_dict = {} # A dictionary of urls as keys (no query)
@@ -261,8 +288,9 @@ def extract_next_links(url, resp):
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
         soup = BS(resp.raw_response.content, "xml")
     except:
+        add_url_to_blacklist(url)
         return set()
-    
+
     # Tokenize the text and add to token list
     text = extract_text(soup)
     tokens = tokenizer(text, url)
@@ -278,7 +306,7 @@ def extract_next_links(url, resp):
                 add_url_to_blacklist(resp.url)
             return set()
 
-    check other queries at same subdomain+path
+    # check other queries at same subdomain+path
     if "?" in url:
         check_similiar_queries(url, tokens)
 
@@ -293,16 +321,16 @@ def extract_next_links(url, resp):
 # returns a single url with a sorted query
 def sort_by_query(link):
     parsed = urlparse(link)
-    # extract query 
+    # extract query
     query = parsed.query.split("&")
     #only sort if query has more than 2 or more parameters
     if(len(query) >= 2):
-        #sort query 
+        #sort query
         query.sort()
         #build new query with sorted parameters
         query_string = "&".join(query)
         #new url with sorted query
-        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment)) 
+        new_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query_string, parsed.fragment))
         return new_url
     else:
         return link
@@ -370,17 +398,18 @@ def is_trap(url):
     repeats = getPathRepeat(urlpath)
     if len(repeats) != 0:
         urlpart = url[:min(url.find(repeat) for repeat in repeats)-1]
-        print("BLACKLISTED:", f"{urlpart}*")
+        
         patternstr = f"^{re.escape(urlpart)}.*"
-        regex = re.compile(patternstr)
+
+        #delete blacklisted patterns that are included in the new pattern
         todel = []
         for pattern in blacklist:
             if pattern.startswith(patternstr[:-2]):
                 todel.append(pattern)
         for p in todel:
             del blacklist[p]
-        blacklist[patternstr] = regex
-        frontier.cancel_urls(regex)
+        
+        add_pattern_to_blacklist(patternstr, True)
 
         for r in repeats:
             pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
@@ -393,17 +422,17 @@ def temporarily_blacklist(regexpattern):
     print(f"TEMP BLACKLIST {regexpattern}")
     tempregex = re.compile(regexpattern)
     temp_blacklist[regexpattern] = tempregex
-    frontier.cancel_urls(tempregex) 
+    frontier.cancel_urls(tempregex)
 
 # check if the scheme, netloc, and path of the url are valid
 def is_valid(url):
-    # Decide whether to crawl this url or not. 
+    # Decide whether to crawl this url or not.
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        return (scheme_pattern.match(parsed.scheme.lower()) 
-                and netloc_pattern.match(parsed.netloc.lower()) 
+        return (scheme_pattern.match(parsed.scheme.lower())
+                and netloc_pattern.match(parsed.netloc.lower())
                 and not bad_ext_path_pattern.match(parsed.path.lower()))
     except TypeError:
         print ("TypeError for ", parsed)
