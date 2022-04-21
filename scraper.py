@@ -128,7 +128,7 @@ subdomainInfo = SubdomainInfo()
 # blacklist pattern list
 #
 def init(tconfig, tfrontier):
-    global config, frontier
+    global config, frontier, blacklist
     config = tconfig
     frontier = tfrontier
 
