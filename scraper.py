@@ -160,7 +160,6 @@ def tokenizer(string, url):
 def isLowValue(tagCount, tokenCount):
     if tagCount > 3:
         if tokenCount/tagCount < 0.5 and tokenCount < 300:
-            print(tokenCount/tagCount)
             return True      
     else:
         #tags <html><body><p> are added to pages with no tags
@@ -279,9 +278,9 @@ def extract_next_links(url, resp):
                 add_url_to_blacklist(resp.url)
             return set()
 
-    # check other queries at same subdomain+path
-    # if "?" in url:
-    #     check_similiar_queries(url, tokens)
+    check other queries at same subdomain+path
+    if "?" in url:
+        check_similiar_queries(url, tokens)
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
