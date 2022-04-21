@@ -8,6 +8,8 @@ import os
 from utils.download import download
 import time
 import robotparser
+from bs4 import BeautifulSoup
+from bs4.element import Comment
 
 
 blacklist = {}
@@ -89,10 +91,10 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|scm)$")
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|scm|img)$")
 
 # English stopwords
-stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
+stopwords = {"a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
             "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
             "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for",
             "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's",
@@ -104,7 +106,7 @@ stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "a
             "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until",
             "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when",
             "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
-            "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"]
+            "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"}
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
@@ -143,9 +145,10 @@ def tokenizer(string, url):
     global longest_cnt
     string = string.lower()
     lst = re.split(r'[\s]+', string)
-    for word in stopwords:
-        if word in lst:
-            lst.remove(word)
+
+    lst = list(filter(lambda a: not a in stopwords, lst))
+
+    lst = list(filter(lambda a: a != "", lst))
 
     # Compare this page's content with the longest page
     if len(lst) >= longest_cnt:
@@ -161,9 +164,11 @@ def countTags(tree):
         return 10000
     return len(head.xpath(".//*"))
 
+# Function to determine if the webpage has low info value
 def isLowValue(wordCnt, tagCnt):
-    num = tagCnt / (tagCnt + wordCnt)
-    if num > 0.7:
+    num = wordCnt/tagCnt
+    print(num)
+    if num < 0.5 and wordCnt < 300:
         return 1
     return 0
 
@@ -239,7 +244,6 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
-
     if response_invalid(resp):
         add_url_to_blacklist(url)
         if resp.url != url:
@@ -264,7 +268,8 @@ def extract_next_links(url, resp):
     tagCnt = countTags(tree)
     
     #extract text
-    text = extract_text(tree)
+    text = extract_text(resp.raw_response.content)
+
     # Tokenize the text and add to token list
     tokens = tokenizer(text,url)
     if "?" in url:
@@ -302,10 +307,9 @@ def sort_by_query(link):
     else:
         return link
 
-def extract_text(tree):
+def extract_text(body):
     # Extract text from the page
-    return ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
-
+    return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), BeautifulSoup(body, 'html.parser').findAll(text=True)))
 # Uses text similiarity to check if url with specfic queries
 # is similiar to previously scraped urls. Temp Blacklists those
 # when a certain threshold is reached.
