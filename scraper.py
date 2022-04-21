@@ -8,7 +8,7 @@ import os
 from utils.download import download
 import time
 import robotparser
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 
 
@@ -157,20 +157,17 @@ def tokenizer(string, url):
     token_list.extend(lst)
     return lst
 
-def countTags(tree):
-    try:
-        head = tree.cssselect('html')[0]
-    except IndexError:
-        return 10000
-    return len(head.xpath(".//*"))
-
-# Function to determine if the webpage has low info value
-def isLowValue(wordCnt, tagCnt):
-    num = wordCnt/tagCnt
-    print(num)
-    if num < 0.5 and wordCnt < 300:
-        return 1
-    return 0
+def isLowValue(tagCount, tokenCount):
+    if tagCount > 3:
+        if tokenCount/tagCount < 0.5 and tokenCount < 300:
+            print(tokenCount/tagCount)
+            return True      
+    else:
+        #tags <html><body><p> are added to pages with no tags
+        #assuming text file
+        if tokenCount < 300:
+            return True
+    return False
 
 def textSimilarity(footprint1, footprint2):
     counter = 0
@@ -244,6 +241,7 @@ def extract_next_links(url, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+    
     if response_invalid(resp):
         add_url_to_blacklist(url)
         if resp.url != url:
@@ -259,29 +257,32 @@ def extract_next_links(url, resp):
     if resp.url != url and is_trap(resp.url):
         return set()
     
+    
     try:
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
+        soup = BS(resp.raw_response.content, "xml")
     except:
         return set()
     
-    # Count the amount of tags
-    tagCnt = countTags(tree)
-    
-    #extract text
-    text = extract_text(resp.raw_response.content)
-
     # Tokenize the text and add to token list
-    tokens = tokenizer(text,url)
-    if "?" in url:
-        check_similiar_queries(url, tokens)
-
-    # Check if the webpage is low value
-    if isLowValue(len(tokens), tagCnt):
-        add_url_to_blacklist(url)
-        if resp.url != url:
-            add_url_to_blacklist(resp.url)
-        return set()
+    text = extract_text(soup)
+    tokens = tokenizer(text, url)
     
+    if len(soup.findAll("loc")) == 0: #sitemaps are not low value
+        # check if page is low value
+        tagCount = len(soup.findAll())
+        tokenCount = len(tokens)
+        if isLowValue(tagCount, tokenCount):
+            print("LOW INFO VALUE:", url)
+            add_url_to_blacklist(url)
+            if resp.url != url:
+                add_url_to_blacklist(resp.url)
+            return set()
+
+    # check other queries at same subdomain+path
+    # if "?" in url:
+    #     check_similiar_queries(url, tokens)
+
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
     #Add this url to unique urls
@@ -307,9 +308,9 @@ def sort_by_query(link):
     else:
         return link
 
-def extract_text(body):
+def extract_text(soup):
     # Extract text from the page
-    return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), BeautifulSoup(body, 'html.parser').findAll(text=True)))
+    return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
 # Uses text similiarity to check if url with specfic queries
 # is similiar to previously scraped urls. Temp Blacklists those
 # when a certain threshold is reached.
