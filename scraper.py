@@ -15,6 +15,7 @@ unique_urls = set()
 query_dict = {}
 
 token_list = []
+token_pattern = '[a-zA-Z]+'
 longest_page = ""
 longest_cnt = 0
 
@@ -140,16 +141,23 @@ def getPathRepeat(urlpath):
 def tokenizer(string, url):
     global longest_page
     global longest_cnt
-    string = string.lower()
-    lst = re.split(r'[\s]+', string)
-    for word in stopwords:
-        if word in lst:
-            lst.remove(word)
+    global token_pattern
 
+    string = string.lower()
+    
+    lst = re.findall(token_pattern, string) 
+    for word in stopwords:
+        try:
+            while True:
+                lst.remove(word)
+        except:
+            pass
+    print(lst)
     # Compare this page's content with the longest page
-    if len(lst) >= longest_cnt:
+    current_length = len(lst)
+    if current_length >= longest_cnt:
         longest_page = url
-        longest_cnt = len(lst)
+        longest_cnt = current_length
     token_list.extend(lst)
     return lst
 
