@@ -1,4 +1,5 @@
 import re
+from urllib.request import urlopen
 from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
 from lxml import etree
@@ -8,9 +9,11 @@ from utils.download import download
 import time
 import robotparser
 
+
 blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
+query_dict = {}
 
 token_list = []
 longest_page = ""
@@ -105,7 +108,7 @@ stopwords = ["a", "about", "above", "after", "again", "against", "all", "am", "a
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
-#  blacklist pattern list
+# blacklist pattern list
 #   
 def init(tconfig, tfrontier):
     global config, frontier
@@ -164,6 +167,45 @@ def isLowValue(wordCnt, tagCnt):
         return 1
     return 0
 
+def textSimilarity(footprint1, footprint2):
+    counter = 0
+    for i in range(len(footprint1)):
+        if footprint1[i] == footprint2[i]:
+            counter += 1
+    similarity = counter/32
+
+    if similarity >= .80:
+        print("Texts are near or exact duplicate!")
+    return similarity
+
+def getFootprint(lst):
+    dict1 = computeWordFrequencies(lst)
+    keys = list(dict1.keys())
+    vector = [0] * 32
+    for i in keys:
+        key = i
+        i = format(hash(i), '0>42b')[-32:]                      #hash tokens into 32 bit
+    for j in range(len(vector)):
+        if i[j] == "1":
+            vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
+        else:                                                             
+            vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
+    for i in range(len(vector)):
+        if vector[i] >= 1:
+            vector[i] = 1                                       #if index is positive, set vector[index]=1
+        else:
+            vector[i] = 0                                       #if index is negative, set vector[index]=0
+    return vector
+
+def computeWordFrequencies(alist):
+    adict = dict()
+    for i in alist:
+        if i not in adict.keys():
+            adict[i] = 1
+        elif i in adict.keys():
+            adict[i] = adict[i] + 1 
+    return adict
+
 def allurlchecks(url):
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
 
@@ -177,6 +219,7 @@ def add_url_to_blacklist(url):
     blacklist[patternstr] = regex
 
 def scraper(url, resp):
+    query_dict = {} # A dictionary of urls as keys (no query)
     links = extract_next_links(url, resp)
     return set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
 
@@ -216,19 +259,19 @@ def extract_next_links(url, resp):
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
     except:
         return set()
-
-    # Extract text from the page
-    text = ' '.join(e.text_content() for e in tree.xpath('//*[self::li or self::br or self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
     
     # Count the amount of tags
     tagCnt = countTags(tree)
     
-
+    #extract text
+    text = extract_text(tree)
     # Tokenize the text and add to token list
-    lst = tokenizer(text,url)
+    tokens = tokenizer(text,url)
+    if "?" in url:
+        check_similiar_queries(url, tokens)
 
     # Check if the webpage is low value
-    if isLowValue(len(lst), tagCnt):
+    if isLowValue(len(tokens), tagCnt):
         add_url_to_blacklist(url)
         if resp.url != url:
             add_url_to_blacklist(resp.url)
@@ -240,12 +283,6 @@ def extract_next_links(url, resp):
     unique_urls.add(url)
 
     return extracted
-    
-
-
-    return set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
-
-
     
 # sort_by_query will sort a link by querys
 # returns a single url with a sorted query
@@ -264,7 +301,42 @@ def sort_by_query(link):
         return new_url
     else:
         return link
-   
+
+def extract_text(tree):
+    # Extract text from the page
+    return ' '.join(e.text_content() for e in tree.xpath('//*[self::title or self::p or self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6 or self::a]'))
+
+# Uses text similiarity to check if url with specfic queries
+# is similiar to previously scraped urls. Temp Blacklists those
+# when a certain threshold is reached.
+def check_similiar_queries(url, tokens):
+    global query_dict
+    counter_threshold = 3
+
+    #parse url
+    parsed = urlparse(url)
+    netloc = parsed.netloc
+    path = parsed.path
+    query = parsed.query
+
+    text = getFootprint(tokens)
+    current_key = netloc + path
+
+    #check if url exists in query dict
+    if(current_key in query_dict):
+        if textSimilarity(text, query_dict[current_key][0]) > 0.8:
+            if(query_dict[current_key][1] >= 3):
+                temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
+                temporarily_blacklist(temp_blacklist_url)
+                del query_dict[current_key]
+            else:
+                counter = query_dict[current_key][1]
+                query_dict[current_key] = [text, counter + 1]
+        else:
+            query_dict[current_key][1] //= 2
+    else:
+        query_dict[current_key] = [text, 0]
+
 
 # check if a url is blacklisted
 #   uses the permanent and temporary blacklists
@@ -308,12 +380,16 @@ def is_trap(url):
 
         for r in repeats:
             pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
-            tempregex = re.compile(pattern)
-            temp_blacklist[pattern] = tempregex
-            frontier.cancel_urls(tempregex) 
+            temporarily_blacklist(pattern)
            
         return True
     return False
+
+def temporarily_blacklist(regexpattern):
+    print(f"TEMP BLACKLIST {regexpattern}")
+    tempregex = re.compile(regexpattern)
+    temp_blacklist[regexpattern] = tempregex
+    frontier.cancel_urls(tempregex) 
 
 # check if the scheme, netloc, and path of the url are valid
 def is_valid(url):

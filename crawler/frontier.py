@@ -72,6 +72,7 @@ class Frontier(object):
         self.save.sync()
     
     def cancel_urls(self, urlregex):
+        print("CANCEL FRONTIER", urlregex.pattern)
         new_to_be_downloaded = []
         for tbd in self.to_be_downloaded:
             if urlregex.match(tbd):
