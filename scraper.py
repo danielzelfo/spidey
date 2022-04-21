@@ -95,10 +95,8 @@ class SubdomainInfo:
 
     # print all sub
     def showAllICSSubDomainUrlCounts(self):
-        icsSubdomainUrlCounts = dict(zip(self.icssubdomains, [self.data[subdomain].num_urls for subdomain in self.icssubdomains]))
-        
-        print( "\n".join([ ", ".join((s_item[0], str(s_item[1])))
-                        for s_item in sorted( icsSubdomainUrlCounts.items(), key=lambda item: (-1*item[1], item[0]) ) ]) )
+        print( "\n".join([ ", ".join(s_item)
+                        for s_item in sorted( zip(self.icssubdomains, [str(self.data[subdomain].num_urls) for subdomain in self.icssubdomains]) ) ]) )
 
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
@@ -208,11 +206,11 @@ def getFootprint(lst):
     for i in keys:
         key = i
         i = format(hash(i), '0>42b')[-32:]                      #hash tokens into 32 bit
-    for j in range(len(vector)):
-        if i[j] == "1":
-            vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
-        else:
-            vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
+        for j in range(len(vector)):
+            if i[j] == "1":
+                vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
+            else:
+                vector[j] = vector[j] + (dict1[key] * -1)           #if index of key is 1, multiply token freq by -1
     for i in range(len(vector)):
         if vector[i] >= 1:
             vector[i] = 1                                       #if index is positive, set vector[index]=1
