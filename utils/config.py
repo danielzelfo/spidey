@@ -12,7 +12,6 @@ class Config(object):
         self.blacklist_file = config["LOCAL PROPERTIES"]["BLACKLIST"]
         self.temp_scraper_info = config["LOCAL PROPERTIES"]["TEMP_SCRAPER_INFO"]
         self.temp_scraper_subdomain_info = config["LOCAL PROPERTIES"]["TEMP_SCRAPER_SUBDOMAIN_INFO"]
-        self.robots_file = config["LOCAL PROPERTIES"]["LOCAL_ROBOTS"]
 
         self.host = config["CONNECTION"]["HOST"]
         self.port = int(config["CONNECTION"]["PORT"])
