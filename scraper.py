@@ -149,7 +149,7 @@ def init(tconfig, tfrontier):
         }
         with open(config.temp_scraper_info, "r") as f:
             data = json.load(f)
-            temp_blacklist = data["temp_blacklist"]
+            temp_blacklist = {pattern: re.compile(pattern) for pattern in data["temp_blacklist"]}
             unique_urls = set(data["unique_urls"])
             query_dict = data["query_dict"]
             token_list = data["token_list"]
@@ -170,11 +170,11 @@ def print_info():
 
 # saves blacklist pattern list to file path provided
 def save():
-    with open(self.config.blacklist_file, "w") as f:
+    with open(config.blacklist_file, "w") as f:
         json.dump({reason: list(blacklist[reason].keys()) for reason in blacklist}, f, indent=4)
     
     tempdict = {
-        "temp_blacklist": temp_blacklist,
+        "temp_blacklist": list(temp_blacklist.keys()),
         "unique_urls": list(unique_urls),
         "query_dict": query_dict,
         "token_list": token_list,
