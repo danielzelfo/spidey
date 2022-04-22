@@ -42,16 +42,10 @@ class SubdomainInfo:
 
             if response_invalid(resp) or not is_valid(resp.url):
                 return
-
-            ab_path = os.path.join(os.getcwd(), config.robots_file)
-            with open(ab_path, "wb") as f:
-                f.write(resp.raw_response.content)
             
             self.robots = robotparser.RobotFileParser()
-            self.robots.set_url("file://"+ab_path)
-            self.robots.read()
-            os.unlink(ab_path)
-
+            self.robots.parse(resp.raw_response.content.decode("utf-8").splitlines())
+            
             for sitemapurl in self.robots.site_maps():
                 print("ADDED SITEMAP:", sitemapurl)
 
