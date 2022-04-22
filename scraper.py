@@ -134,7 +134,7 @@ subdomainInfo = SubdomainInfo()
 # blacklist pattern list
 #
 def init(tconfig, tfrontier):
-    global config, frontier, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo
+    global config, frontier, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
     config = tconfig
     frontier = tfrontier
 
@@ -145,19 +145,13 @@ def init(tconfig, tfrontier):
             blacklist[reason] = {pattern: re.compile(pattern) for pattern in blacklist[reason]}
     
     if os.path.exists(config.temp_scraper_info):
-        tempdict = {
-            "temp_blacklist": temp_blacklist,
-            "unique_urls": unique_urls,
-            "query_dict": query_dict,
-            "token_list": token_list,
-            "longest_page": longest_page,
-            "longest_cnt": longest_cnt
-        }
         with open(config.temp_scraper_info, "r") as f:
             data = json.load(f)
             temp_blacklist = {pattern: re.compile(pattern) for pattern in data["temp_blacklist"]}
             unique_urls = set(data["unique_urls"])
             query_dict = data["query_dict"]
+            prevURL = data["prevURL"]
+            pageFootprints = data["pageFootprints"]
             token_list = data["token_list"]
             longest_page = data["longest_page"]
             longest_cnt = data["longest_cnt"]
@@ -187,6 +181,8 @@ def save():
         "temp_blacklist": list(temp_blacklist.keys()),
         "unique_urls": list(unique_urls),
         "query_dict": query_dict,
+        "prevURL": prevURL,
+        "pageFootprints": pageFootprints,
         "token_list": token_list,
         "longest_page": longest_page,
         "longest_cnt": longest_cnt
@@ -296,7 +292,6 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
         frontier.cancel_urls(regex)
 
 def scraper(url, resp):
-    query_dict = {} # A dictionary of urls as keys (no query)
     links = extract_next_links(url, resp)
     outlinks = set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
     for outlink in outlinks:
@@ -358,10 +353,12 @@ def extract_next_links(url, resp):
 
         text = getFootprint(tokens)
 
+        
+        # check other queries at same subdomain+path
+        if "?" in url:
+            check_similiar_queries(url, text)
         #check if footprint is similar to prev page
-        
-        
-        if url in prevURL and prevURL[url] in pageFootprints:
+        elif url in prevURL and prevURL[url] in pageFootprints:
             sim = textSimilarity(text, pageFootprints[prevURL[url]])
             print("SIMILAR?", sim)
             if sim[0] > 0.85 and sim[1] > 0.85:
@@ -369,10 +366,6 @@ def extract_next_links(url, resp):
                 return set()
 
         pageFootprints[url] = text
-
-        # check other queries at same subdomain+path
-        if "?" in url:
-            check_similiar_queries(url, text)
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
