@@ -9,19 +9,20 @@ import robotparser
 from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 import json
+import pickle
 
 blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
 query_dict = {}
-
 token_list = []
-token_pattern = '[a-zA-Z]+'
 longest_page = ""
 longest_cnt = 0
 
 config = None
 frontier = None
+
+token_pattern = '[a-zA-Z]+'
 
 class SubdomainInfo:
     class SubdomainEntry:
@@ -127,7 +128,7 @@ subdomainInfo = SubdomainInfo()
 # blacklist pattern list
 #
 def init(tconfig, tfrontier):
-    global config, frontier, blacklist
+    global config, frontier, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo
     config = tconfig
     frontier = tfrontier
 
@@ -136,6 +137,29 @@ def init(tconfig, tfrontier):
             blacklist = json.load(f)
         for reason in blacklist:
             blacklist[reason] = {pattern: re.compile(pattern) for pattern in blacklist[reason]}
+    
+    if os.path.exists(config.temp_scraper_info):
+        tempdict = {
+            "temp_blacklist": temp_blacklist,
+            "unique_urls": unique_urls,
+            "query_dict": query_dict,
+            "token_list": token_list,
+            "longest_page": longest_page,
+            "longest_cnt": longest_cnt
+        }
+        with open(config.temp_scraper_info, "r") as f:
+            data = json.load(f)
+            temp_blacklist = {pattern: re.compile(pattern) for pattern in data["temp_blacklist"]}
+            unique_urls = set(data["unique_urls"])
+            query_dict = data["query_dict"]
+            token_list = data["token_list"]
+            longest_page = data["longest_page"]
+            longest_cnt = data["longest_cnt"]
+    
+    if os.path.exists(config.temp_scraper_subdomain_info):
+        with open(config.temp_scraper_subdomain_info, "rb") as f:
+            subdomainInfo = pickle.load(f)
+
 
 def print_info():
     print(Counter(token_list).most_common(50))
@@ -145,9 +169,23 @@ def print_info():
     subdomainInfo.showAllICSSubDomainUrlCounts()
 
 # saves blacklist pattern list to file path provided
-def save_blacklist(blacklistsavepath):
-    with open(blacklistsavepath, "w") as f:
+def save():
+    with open(config.blacklist_file, "w") as f:
         json.dump({reason: list(blacklist[reason].keys()) for reason in blacklist}, f, indent=4)
+    
+    tempdict = {
+        "temp_blacklist": list(temp_blacklist.keys()),
+        "unique_urls": list(unique_urls),
+        "query_dict": query_dict,
+        "token_list": token_list,
+        "longest_page": longest_page,
+        "longest_cnt": longest_cnt
+    }
+    with open(config.temp_scraper_info, "w") as f:
+        json.dump(tempdict, f, indent=4)
+    
+    with open(config.temp_scraper_subdomain_info, "wb") as f:
+        pickle.dump(subdomainInfo, f)
 
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def getPathRepeat(urlpath):

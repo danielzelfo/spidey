@@ -26,6 +26,10 @@ class Frontier(object):
         # Load existing save file, or create one if it does not exist.
         self.save = shelve.open(self.config.save_file)
         if restart:
+            if os.path.exists(self.config.temp_scraper_info):
+                os.remove(self.config.temp_scraper_info)
+            if os.path.exists(self.config.temp_scraper_subdomain_info):
+                os.remove(self.config.temp_scraper_subdomain_info)
             for url in self.config.seed_urls:
                 self.add_url(url)
         else:
