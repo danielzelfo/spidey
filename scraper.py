@@ -10,7 +10,19 @@ from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 import json
 import pickle
+import signal
 
+
+def siginthandler(signum, fname):
+    print("\nCLICKED CTRL-C -- SAVING")
+    save()
+    exit(1)
+
+signal.signal(signal.SIGINT, siginthandler)
+
+
+prevURL = {}
+pageFootprints = {}
 blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
@@ -22,7 +34,7 @@ longest_cnt = 0
 config = None
 frontier = None
 
-token_pattern = '[a-zA-Z]+'
+token_pattern = r"[a-zA-Z']+"
 
 class SubdomainInfo:
     class SubdomainEntry:
@@ -154,7 +166,8 @@ def init(tconfig, tfrontier):
         with open(config.temp_scraper_subdomain_info, "rb") as f:
             subdomainInfo = pickle.load(f)
 
-
+# prints report information
+# most common urls, unique urls, longest page, number of subdomain crawled
 def print_info():
     print(Counter(token_list).most_common(50))
     print(f"Number of unique urls: {len(unique_urls)}")
@@ -164,6 +177,9 @@ def print_info():
 
 # saves blacklist pattern list to file path provided
 def save():
+    if config is None:
+        return
+    
     with open(config.blacklist_file, "w") as f:
         json.dump({reason: list(blacklist[reason].keys()) for reason in blacklist}, f, indent=4)
     
@@ -192,11 +208,14 @@ def tokenizer(string, url):
     global longest_page
     global longest_cnt
     global token_pattern
-
+    
+    #lowercase string
     string = string.lower()
-
+    
+    # Create list of tokens matching token pattern
     lst = re.findall(token_pattern, string)
 
+    # Remove stopwords from list
     lst = list(filter(lambda a: a != "" and not a in stopwords, lst))
 
     # Compare this page's content with the longest page
@@ -220,14 +239,14 @@ def isLowValue(tagCount, tokenCount):
 
 def textSimilarity(footprint1, footprint2):
     counter = 0
-    for i in range(len(footprint1)):
-        if footprint1[i] == footprint2[i]:
+    for i in range(len(footprint1[0])):
+        if footprint1[0][i] == footprint2[0][i]:
             counter += 1
     similarity = counter/32
-
-    if similarity >= .80:
+    similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
+    if similarity >= .85 and similaritylength > .85:
         print("Texts are near or exact duplicate!")
-    return similarity
+    return similarity, similaritylength
 
 def getFootprint(lst):
     dict1 = computeWordFrequencies(lst)
@@ -246,7 +265,7 @@ def getFootprint(lst):
             vector[i] = 1                                       #if index is positive, set vector[index]=1
         else:
             vector[i] = 0                                       #if index is negative, set vector[index]=0
-    return vector
+    return (vector, len(lst))
 
 def computeWordFrequencies(alist):
     adict = dict()
@@ -279,7 +298,10 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
 def scraper(url, resp):
     query_dict = {} # A dictionary of urls as keys (no query)
     links = extract_next_links(url, resp)
-    return set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
+    outlinks = set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
+    for outlink in outlinks:
+        prevURL[outlink] = url
+    return outlinks
 
 
 def absolute_url(page_url, outlink_url):
@@ -334,9 +356,23 @@ def extract_next_links(url, resp):
                 add_url_to_blacklist(resp.url, "low info value")
             return set()
 
+        text = getFootprint(tokens)
+
+        #check if footprint is similar to prev page
+        
+        
+        if url in prevURL and prevURL[url] in pageFootprints:
+            sim = textSimilarity(text, pageFootprints[prevURL[url]])
+            print("SIMILAR?", sim)
+            if sim[0] > 0.85 and sim[1] > 0.85:
+                print("SIMILAR PAGES", url, prevURL[url], sim)
+                return set()
+
+        pageFootprints[url] = text
+
         # check other queries at same subdomain+path
         if "?" in url:
-            check_similiar_queries(url, tokens)
+            check_similiar_queries(url, text)
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
@@ -372,7 +408,7 @@ def extract_text(soup):
 # Uses text similiarity to check if url with specfic queries
 # is similiar to previously scraped urls. Temp Blacklists those
 # when a certain threshold is reached.
-def check_similiar_queries(url, tokens):
+def check_similiar_queries(url, text):
     global query_dict
     counter_threshold = 3
 
@@ -382,12 +418,12 @@ def check_similiar_queries(url, tokens):
     path = parsed.path
     query = parsed.query
 
-    text = getFootprint(tokens)
     current_key = netloc + path
 
     #check if url exists in query dict
     if(current_key in query_dict):
-        if textSimilarity(text, query_dict[current_key][0]) > 0.8:
+        similarity = textSimilarity(text, query_dict[current_key][0])
+        if similarity[0] > 0.85 and similarity[1] > 0.85:
             if(query_dict[current_key][1] >= 3):
                 temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
                 temporarily_blacklist(temp_blacklist_url)
@@ -450,6 +486,9 @@ def is_trap(url):
            
         return True
     return False
+
+# Adds a regex patter into temp blacklist
+# cancels all urls that match regex
 
 def temporarily_blacklist(regexpattern):
     print(f"TEMP BLACKLIST {regexpattern}")
