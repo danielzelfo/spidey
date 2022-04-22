@@ -1,8 +1,6 @@
 import re
-from urllib.request import urlopen
 from urllib.parse import urlparse, urljoin, urldefrag, urlunsplit
 from lxml import html
-from lxml import etree
 from collections import Counter
 import os
 from utils.download import download
@@ -167,9 +165,7 @@ def tokenizer(string, url):
 
     lst = re.findall(token_pattern, string)
 
-    lst = list(filter(lambda a: not a in stopwords, lst))
-
-    lst = list(filter(lambda a: a != "", lst))
+    lst = list(filter(lambda a: a != "" and not a in stopwords, lst))
 
     # Compare this page's content with the longest page
     current_length = len(lst)
@@ -285,18 +281,18 @@ def extract_next_links(url, resp):
     if resp.url != url and is_trap(resp.url):
         return set()
     
-    
     try:
         tree = html.fromstring(resp.raw_response.content) #check if urls are valid
-        soup = BS(resp.raw_response.content, "xml")
     except:
         return set()
-
-    # Tokenize the text and add to token list
-    text = extract_text(soup)
-    tokens = tokenizer(text, url)
     
-    if len(soup.findAll("loc")) == 0: #sitemaps are not low value
+    if tree.xpath("count(//loc)") == 0: # not sitemap check
+        soup = BS(resp.raw_response.content, "html.parser", from_encoding="iso-8859-1")
+
+        # Tokenize the text and add to token list
+        text = extract_text(soup)
+        tokens = tokenizer(text, url)
+
         # check if page is low value
         tagCount = len(soup.findAll())
         tokenCount = len(tokens)
@@ -306,9 +302,9 @@ def extract_next_links(url, resp):
                 add_url_to_blacklist(resp.url, "low info value")
             return set()
 
-    # check other queries at same subdomain+path
-    if "?" in url:
-        check_similiar_queries(url, tokens)
+        # check other queries at same subdomain+path
+        if "?" in url:
+            check_similiar_queries(url, tokens)
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
