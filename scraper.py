@@ -358,14 +358,16 @@ def extract_next_links(url, resp):
         if "?" in url:
             check_similiar_queries(url, text)
         #check if footprint is similar to prev page
-        elif url in prevURL and prevURL[url] in pageFootprints:
-            sim = textSimilarity(text, pageFootprints[prevURL[url]])
-            print("SIMILAR?", sim)
-            if sim[0] > 0.85 and sim[1] > 0.85:
-                print("SIMILAR PAGES", url, prevURL[url], sim)
-                return set()
+        elif url in prevURL:
+            prev = prevURL[url]
+            if prev in pageFootprints:
+                sim = textSimilarity(text, pageFootprints[prev])
+                if sim[0] > 0.85 and sim[1] > 0.85:
+                    print("SIMILAR PAGES", url, prev, sim)
+                    return set()
+            pageFootprints[url] = text
 
-        pageFootprints[url] = text
+        
 
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     

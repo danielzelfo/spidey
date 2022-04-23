@@ -108,3 +108,5 @@ venv.bak/
 
 *.full.py
 *.shelve
+temp_scraper.json
+temp_scraper_subdomains.pickle
