@@ -14,7 +14,8 @@ import signal
 
 
 def siginthandler(signum, fname):
-    print("\nCLICKED CTRL-C -- SAVING")
+    print_info()
+    print("\nCLICKED CTRL-C")
     print("[...] closing and joining threads")
     for worker in crawler.workers:
         worker.exit = True
@@ -41,7 +42,7 @@ longest_cnt = 0
 
 crawler = None
 
-token_pattern = r"[a-zA-Z']+"
+token_pattern = r"[a-zA-Z'-]{2,}"
 
 class SubdomainInfo:
     class SubdomainEntry:
