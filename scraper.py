@@ -14,8 +14,17 @@ import signal
 
 
 def siginthandler(signum, fname):
-    print("\nCLICKED CTRL-C -- SAVING")
+    print_info()
+    print("\nCLICKED CTRL-C")
+    print("[...] closing and joining threads")
+    for worker in crawler.workers:
+        worker.exit = True
+    crawler.join()
+    print("[...] syncing shelf")
+    crawler.frontier.save.sync()
+    print("[...] saving scraper data")
     save()
+    print("[...] exiting")
     exit(1)
 
 signal.signal(signal.SIGINT, siginthandler)
@@ -31,10 +40,9 @@ token_list = []
 longest_page = ""
 longest_cnt = 0
 
-config = None
-frontier = None
+crawler = None
 
-token_pattern = r"[a-zA-Z']+"
+token_pattern = r"[a-zA-Z'-]{2,}"
 
 class SubdomainInfo:
     class SubdomainEntry:
@@ -49,12 +57,14 @@ class SubdomainInfo:
         def process_robots(self, url):
             robotsurl = url.split(self.netloc)[0] + self.netloc+"/robots.txt"
 
-            resp = download(robotsurl, config)
-            time.sleep(config.time_delay)
+            time.sleep(crawler.config.time_delay)
+            resp = download(robotsurl, crawler.config)
 
             if response_invalid(resp) or not is_valid(resp.url):
                 return
             
+            self.num_urls += 1
+
             self.robots = robotparser.RobotFileParser()
             self.robots.parse(resp.raw_response.content.decode("utf-8").splitlines())
             
@@ -62,13 +72,14 @@ class SubdomainInfo:
                 print("ADDED SITEMAP:", sitemapurl)
 
                 if sitemapurl.lower().endswith(".txt"):
-                    resp = download(sitemapurl, config)
-                    time.sleep(config.time_delay)
+                    time.sleep(crawler.config.time_delay)
+                    resp = download(sitemapurl, crawler.config)
                     if not (response_invalid(resp) or not is_valid(resp.url)):
+                        self.num_urls += 1
                         for fromsitemaptxt in resp.raw_response.content.splitlines():
-                            frontier.add_url(fromsitemaptxt)
+                            crawler.frontier.add_url(fromsitemaptxt)
                 elif allurlchecks(sitemapurl):
-                    frontier.add_url(sitemapurl)
+                    crawler.frontier.add_url(sitemapurl)
 
     def __init__(self):
         self.data = {}
@@ -133,19 +144,18 @@ subdomainInfo = SubdomainInfo()
 # initialize scraper
 # blacklist pattern list
 #
-def init(tconfig, tfrontier):
-    global config, frontier, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
-    config = tconfig
-    frontier = tfrontier
+def init(tcrawler):
+    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
+    crawler = tcrawler
 
-    if os.path.exists(config.blacklist_file):
-        with open(config.blacklist_file, "r") as f:
+    if os.path.exists(crawler.config.blacklist_file):
+        with open(crawler.config.blacklist_file, "r") as f:
             blacklist = json.load(f)
         for reason in blacklist:
             blacklist[reason] = {pattern: re.compile(pattern) for pattern in blacklist[reason]}
     
-    if os.path.exists(config.temp_scraper_info):
-        with open(config.temp_scraper_info, "r") as f:
+    if os.path.exists(crawler.config.temp_scraper_info):
+        with open(crawler.config.temp_scraper_info, "r") as f:
             data = json.load(f)
             temp_blacklist = {pattern: re.compile(pattern) for pattern in data["temp_blacklist"]}
             unique_urls = set(data["unique_urls"])
@@ -156,8 +166,8 @@ def init(tconfig, tfrontier):
             longest_page = data["longest_page"]
             longest_cnt = data["longest_cnt"]
     
-    if os.path.exists(config.temp_scraper_subdomain_info):
-        with open(config.temp_scraper_subdomain_info, "rb") as f:
+    if os.path.exists(crawler.config.temp_scraper_subdomain_info):
+        with open(crawler.config.temp_scraper_subdomain_info, "rb") as f:
             subdomainInfo = pickle.load(f)
 
 # prints report information
@@ -171,10 +181,10 @@ def print_info():
 
 # saves blacklist pattern list to file path provided
 def save():
-    if config is None:
+    if crawler is None:
         return
     
-    with open(config.blacklist_file, "w") as f:
+    with open(crawler.config.blacklist_file, "w") as f:
         json.dump({reason: list(blacklist[reason].keys()) for reason in blacklist}, f, indent=4)
     
     tempdict = {
@@ -187,17 +197,17 @@ def save():
         "longest_page": longest_page,
         "longest_cnt": longest_cnt
     }
-    with open(config.temp_scraper_info, "w") as f:
+    with open(crawler.config.temp_scraper_info, "w") as f:
         json.dump(tempdict, f, indent=4)
     
-    with open(config.temp_scraper_subdomain_info, "wb") as f:
+    with open(crawler.config.temp_scraper_subdomain_info, "wb") as f:
         pickle.dump(subdomainInfo, f)
 
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def getPathRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
-    return [key for key,value in dict1.items() if value > config.path_repeat_threshold]
+    return [key for key,value in dict1.items() if value > crawler.config.path_repeat_threshold]
 
 # Tokenize a string into a list of words and put into token list, also finding the longest page
 def tokenizer(string, url):
@@ -235,10 +245,11 @@ def isLowValue(tagCount, tokenCount):
 
 def textSimilarity(footprint1, footprint2):
     counter = 0
-    for i in range(len(footprint1[0])):
+    length = len(footprint1[0])
+    for i in range(length):
         if footprint1[0][i] == footprint2[0][i]:
             counter += 1
-    similarity = counter/32
+    similarity = counter/length
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
     if similarity >= .85 and similaritylength > .85:
         print("Texts are near or exact duplicate!")
@@ -247,10 +258,10 @@ def textSimilarity(footprint1, footprint2):
 def getFootprint(lst):
     dict1 = computeWordFrequencies(lst)
     keys = list(dict1.keys())
-    vector = [0] * 32
+    vector = [0] * 128
     for i in keys:
         key = i
-        i = format(hash(i), '0>42b')[-32:]                      #hash tokens into 32 bit
+        i = format(hash(i), '0>128b')                      #hash tokens into 128 bit
         for j in range(len(vector)):
             if i[j] == "1":
                 vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
@@ -289,7 +300,7 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
     regex = re.compile(pattern)
     blacklist[reason][pattern] = regex
     if cancel_frontier:
-        frontier.cancel_urls(regex)
+        crawler.frontier.cancel_urls(regex)
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -489,7 +500,7 @@ def temporarily_blacklist(regexpattern):
     print(f"TEMP BLACKLIST {regexpattern}")
     tempregex = re.compile(regexpattern)
     temp_blacklist[regexpattern] = tempregex
-    frontier.cancel_urls(tempregex)
+    crawler.frontier.cancel_urls(tempregex)
 
 # check if the scheme, netloc, and path of the url are valid
 def is_valid(url):
