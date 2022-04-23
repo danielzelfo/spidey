@@ -16,6 +16,7 @@ import signal
 def siginthandler(signum, fname):
     print("\nCLICKED CTRL-C -- SAVING")
     save()
+    print_info()
     exit(1)
 
 signal.signal(signal.SIGINT, siginthandler)
@@ -34,7 +35,7 @@ longest_cnt = 0
 config = None
 frontier = None
 
-token_pattern = r"[a-zA-Z']+"
+token_pattern = r"[a-zA-Z'-]+"
 
 class SubdomainInfo:
     class SubdomainEntry:
@@ -163,6 +164,7 @@ def init(tconfig, tfrontier):
 # prints report information
 # most common urls, unique urls, longest page, number of subdomain crawled
 def print_info():
+    deleteSingle(token_list)
     print(Counter(token_list).most_common(50))
     print(f"Number of unique urls: {len(unique_urls)}")
     print("longest page:" + longest_page)
@@ -263,6 +265,11 @@ def getFootprint(lst):
             vector[i] = 0                                       #if index is negative, set vector[index]=0
     return (vector, len(lst))
 
+def deleteSingle(lst):
+    for item in lst:
+        if len(item) is 1:
+            lst.remove(item)
+            
 def computeWordFrequencies(alist):
     adict = dict()
     for i in alist:
