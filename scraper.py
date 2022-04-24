@@ -39,6 +39,7 @@ query_dict = {}
 token_counts = {}
 longest_page = ""
 longest_cnt = 0
+previouspage = None
 
 crawler = None
 
@@ -145,7 +146,7 @@ subdomainInfo = SubdomainInfo()
 # blacklist pattern list
 #
 def init(tcrawler):
-    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
+    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
     crawler = tcrawler
 
     if os.path.exists(crawler.config.blacklist_file):
@@ -165,6 +166,7 @@ def init(tcrawler):
             token_counts = data["token_counts"]
             longest_page = data["longest_page"]
             longest_cnt = data["longest_cnt"]
+            previouspage = data["previouspage"]
     
     if os.path.exists(crawler.config.temp_scraper_subdomain_info):
         with open(crawler.config.temp_scraper_subdomain_info, "rb") as f:
@@ -206,7 +208,8 @@ def save():
         "pageFootprints": pageFootprints,
         "token_counts": token_counts,
         "longest_page": longest_page,
-        "longest_cnt": longest_cnt
+        "longest_cnt": longest_cnt,
+        "previouspage": previouspage
     }
     with open(crawler.config.temp_scraper_info, "w") as f:
         json.dump(tempdict, f)
@@ -345,6 +348,7 @@ def absolute_url(page_url, outlink_url):
     return urldefrag(newurl)[0]
 
 def extract_next_links(url, resp):
+    global previouspage
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
     # resp.status: the status code returned by the server. 200 is OK, you got the page. Other numbers mean that there was some kind of problem.
@@ -397,14 +401,26 @@ def extract_next_links(url, resp):
         if "?" in url:
             check_similiar_queries(url, text)
         #check if footprint is similar to prev page
-        elif url in prevURL:
+        prev = None
+        if url in prevURL and (not "?" in url or not "?" in prevURL[url]):
             prev = prevURL[url]
             if prev in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[prev])
                 if sim[0] > 0.9 and sim[1] > 0.9:
                     print("SIMILAR PAGES", url, prev, sim)
                     return set()
-            pageFootprints[url] = text
+        
+        if not previouspage is None and previouspage != prev:
+            if previouspage in pageFootprints:
+                sim = textSimilarity(text, pageFootprints[previouspage])
+                if sim[0] > 0.9 and sim[1] > 0.9:
+                    print("SIMILAR PAGES", url, prev, sim)
+                    return set()
+
+        previouspage = url
+        pageFootprints[url] = text
+    else:
+        previouspage = None
 
         
     #Join relative and absolute paths
