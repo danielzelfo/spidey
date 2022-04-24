@@ -255,12 +255,12 @@ def tokenizer(string, url):
 # Returns bool
 def isLowValue(tagCount, tokenCount):
     if tagCount > 3:
-        if tokenCount/tagCount < 0.5 and tokenCount < 300:
+        if tokenCount/tagCount < 0.5 and tokenCount < 150:
             return True
     else:
         #tags <html><body><p> are added to pages with no tags
         #assuming text file
-        if tokenCount < 300:
+        if tokenCount < 150:
             return True
     return False
 
@@ -273,7 +273,7 @@ def textSimilarity(footprint1, footprint2):
             counter += 1
     similarity = counter/length
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
-    if similarity >= .85 and similaritylength > .85:
+    if similarity >= .90 and similaritylength > .90:
         print("Texts are near or exact duplicate!")
     return similarity, similaritylength
 
@@ -294,7 +294,7 @@ def getFootprint(lst):
             vector[i] = 1                                       #if index is positive, set vector[index]=1
         else:
             vector[i] = 0                                       #if index is negative, set vector[index]=0
-    return (vector, len(lst))
+    return ("".join([str(z) for z in vector]), len(lst))
 
 # Creates a frequency dictionary with tokens as keys, frequencies as values
 def computeWordFrequencies(alist):
@@ -407,14 +407,14 @@ def extract_next_links(url, resp):
             if prev in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[prev])
                 if sim[0] > 0.9 and sim[1] > 0.9:
-                    print("SIMILAR PAGES", url, prev, sim)
+                    print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
         
         if not previouspage is None and previouspage != prev:
             if previouspage in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[previouspage])
                 if sim[0] > 0.9 and sim[1] > 0.9:
-                    print("SIMILAR PAGES", url, prev, sim)
+                    print("SIMILAR PAGE to previous", url, previouspage, sim)
                     return set()
 
         previouspage = url
