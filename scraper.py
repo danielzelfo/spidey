@@ -14,8 +14,8 @@ import signal
 
 
 def siginthandler(signum, fname):
-    print_info()
     print("\nCLICKED CTRL-C")
+    print_info()
     print("[...] closing and joining threads")
     for worker in crawler.workers:
         worker.exit = True
@@ -36,7 +36,7 @@ blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
 query_dict = {}
-token_list = []
+token_counts = {}
 longest_page = ""
 longest_cnt = 0
 
@@ -145,7 +145,7 @@ subdomainInfo = SubdomainInfo()
 # blacklist pattern list
 #
 def init(tcrawler):
-    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
+    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
     crawler = tcrawler
 
     if os.path.exists(crawler.config.blacklist_file):
@@ -162,7 +162,7 @@ def init(tcrawler):
             query_dict = data["query_dict"]
             prevURL = data["prevURL"]
             pageFootprints = data["pageFootprints"]
-            token_list = data["token_list"]
+            token_counts = data["token_counts"]
             longest_page = data["longest_page"]
             longest_cnt = data["longest_cnt"]
     
@@ -170,10 +170,21 @@ def init(tcrawler):
         with open(crawler.config.temp_scraper_subdomain_info, "rb") as f:
             subdomainInfo = pickle.load(f)
 
+def mostcommontokens():
+    mostcommon = set()
+    token_count_items = list(token_counts.items())
+    for _ in range(50):
+        most = -1
+        for i in range(len(token_count_items)):
+            if (most == -1 or token_count_items[i][1] > token_count_items[most][1]) and not i in mostcommon:
+                most = i
+        mostcommon.add(most)
+    return sorted([token_count_items[idx] for idx in mostcommon], key=lambda x: x[1], reverse=True)
+
 # prints report information
 # most common urls, unique urls, longest page, number of subdomain crawled
 def print_info():
-    print(Counter(token_list).most_common(50))
+    print(mostcommontokens())
     print(f"Number of unique urls: {len(unique_urls)}")
     print("longest page:" + longest_page)
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
@@ -193,12 +204,12 @@ def save():
         "query_dict": query_dict,
         "prevURL": prevURL,
         "pageFootprints": pageFootprints,
-        "token_list": token_list,
+        "token_counts": token_counts,
         "longest_page": longest_page,
         "longest_cnt": longest_cnt
     }
     with open(crawler.config.temp_scraper_info, "w") as f:
-        json.dump(tempdict, f, indent=4)
+        json.dump(tempdict, f)
     
     with open(crawler.config.temp_scraper_subdomain_info, "wb") as f:
         pickle.dump(subdomainInfo, f)
@@ -211,9 +222,7 @@ def getPathRepeat(urlpath):
 
 # Tokenize a string into a list of words and put into token list, also finding the longest page
 def tokenizer(string, url):
-    global longest_page
-    global longest_cnt
-    global token_pattern
+    global longest_page, longest_cnt
     
     #lowercase string
     string = string.lower()
@@ -229,7 +238,12 @@ def tokenizer(string, url):
     if current_length >= longest_cnt:
         longest_page = url
         longest_cnt = current_length
-    token_list.extend(lst)
+    
+    for token in lst:
+        if not token in token_counts:
+            token_counts[token] = 0
+        token_counts[token] += 1
+    
     return lst
 
 # Compares number of tags with number of tokens
@@ -317,7 +331,6 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
 # scraper will extract and return urls 
 # that contain "high value information"
 def scraper(url, resp):
-    global prevURL
     links = extract_next_links(url, resp)
     outlinks = set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
     for outlink in outlinks:
@@ -388,7 +401,7 @@ def extract_next_links(url, resp):
             prev = prevURL[url]
             if prev in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[prev])
-                if sim[0] > 0.85 and sim[1] > 0.85:
+                if sim[0] > 0.9 and sim[1] > 0.9:
                     print("SIMILAR PAGES", url, prev, sim)
                     return set()
             pageFootprints[url] = text
@@ -431,7 +444,6 @@ def extract_text(soup):
 # is similiar to previously scraped urls. Temp Blacklists those 
 # when a certain threshold is reached.
 def check_similiar_queries(url, text):
-    global query_dict
     counter_threshold = 3
 
     #parse url
@@ -449,7 +461,7 @@ def check_similiar_queries(url, text):
         # if similarity exceeds threshold/counter of previous similiar queries
         # temp blacklist url
         # otherwise reduce counter
-        if similarity[0] > 0.85 and similarity[1] > 0.85:
+        if similarity[0] > 0.9 and similarity[1] > 0.9:
             if(query_dict[current_key][1] >= counter_threshold):
                 temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
                 temporarily_blacklist(temp_blacklist_url)
