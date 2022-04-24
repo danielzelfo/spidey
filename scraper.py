@@ -231,7 +231,7 @@ def tokenizer(string, url):
     lst = re.findall(token_pattern, string)
 
     # Remove stopwords from list
-    lst = list(filter(lambda a: a != "" and len(a) > 1 and not a in stopwords, lst))
+    lst = list(filter(lambda a: a != "" and not a in stopwords, lst))
 
     # Compare this page's content with the longest page
     current_length = len(lst)
