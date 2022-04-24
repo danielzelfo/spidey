@@ -401,21 +401,23 @@ def extract_next_links(url, resp):
         if "?" in url:
             check_similiar_queries(url, text)
         #check if footprint is similar to prev page
+        
         prev = None
-        if url in prevURL and (not "?" in url or not "?" in prevURL[url]):
+        if url in prevURL:
             prev = prevURL[url]
-            if prev in pageFootprints:
+            if (not "?" in url or not "?" in prev) and prev in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[prev])
                 if sim[0] > 0.9 and sim[1] > 0.9:
                     print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
         
-        if not previouspage is None and previouspage != prev:
-            if previouspage in pageFootprints:
-                sim = textSimilarity(text, pageFootprints[previouspage])
-                if sim[0] > 0.9 and sim[1] > 0.9:
-                    print("SIMILAR PAGE to previous", url, previouspage, sim)
-                    return set()
+        if not previouspage is None and previouspage != prev \
+                and (not "?" in url or not "?" in previouspage) \
+                and (previouspage in pageFootprints):
+            sim = textSimilarity(text, pageFootprints[previouspage])
+            if sim[0] > 0.9 and sim[1] > 0.9:
+                print("SIMILAR PAGE to previous", url, previouspage, sim)
+                return set()
 
         previouspage = url
         pageFootprints[url] = text
