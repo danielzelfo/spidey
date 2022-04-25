@@ -36,7 +36,7 @@ prevURL = {}
 pageFootprints = {}
 blacklist = {}
 temp_blacklist = {}
-unique_urls = set()
+unique_url_count = 0
 query_dict = {}
 token_counts = {}
 longest_page = ""
@@ -164,7 +164,7 @@ subdomainInfo = SubdomainInfo()
 # All other data is saved in a JSON file. The compiled regex patterns cannot be saved in a JSON file.
 # Their string patterns are saved, and they are recompiled when the scraper is initialized
 def init(tcrawler):
-    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
+    global crawler, blacklist, temp_blacklist, unique_url_count, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
     crawler = tcrawler
 
     if os.path.exists(crawler.config.blacklist_file):
@@ -177,7 +177,7 @@ def init(tcrawler):
         with open(crawler.config.temp_scraper_info, "r") as f:
             data = json.load(f)
             temp_blacklist = {pattern: re.compile(pattern) for pattern in data["temp_blacklist"]}
-            unique_urls = set(data["unique_urls"])
+            unique_url_count = data["unique_url_count"]
             query_dict = data["query_dict"]
             prevURL = data["prevURL"]
             pageFootprints = data["pageFootprints"]
@@ -206,7 +206,7 @@ def mostcommontokens():
 # most common urls, unique urls, longest page, number of subdomain crawled
 def print_info():
     print(mostcommontokens())
-    print(f"Number of unique urls: {len(unique_urls)}")
+    print(f"Number of unique urls: {unique_url_count}")
     print("longest page:" + longest_page)
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
     subdomainInfo.showAllICSSubDomainUrlCounts()
@@ -227,7 +227,7 @@ def save():
     
     tempdict = {
         "temp_blacklist": list(temp_blacklist.keys()),
-        "unique_urls": list(unique_urls),
+        "unique_url_count": unique_url_count,
         "query_dict": query_dict,
         "prevURL": prevURL,
         "pageFootprints": pageFootprints,
@@ -285,7 +285,6 @@ def isLowValue(tagCount, tokenCount):
         if tokenCount/tagCount < 0.5 and tokenCount < 150:
             return True
     else:
-        #tags <html><body><p> are added to pages with no tags
         #assuming text file
         if tokenCount < 150:
             return True
@@ -392,7 +391,7 @@ def extract_next_links(url, resp):
         return set()
     
     # check if redirect is blacklisted
-    if resp.url != url and is_blacklisted(resp.url) or not is_valid(resp.url):
+    if resp.url != url and (is_blacklisted(resp.url) or not is_valid(resp.url)):
         add_url_to_blacklist(url, "bad url")
         return set()
     
@@ -408,18 +407,26 @@ def extract_next_links(url, resp):
     if tree.xpath("count(//loc)") == 0: # not sitemap check
         soup = BS(resp.raw_response.content, "html.parser", from_encoding="iso-8859-1")
 
+        tagCount = len(soup.findAll())
+
         # Tokenize the text and add to token list
-        text = extract_text(soup)
+        # Note: this only works for html.parser which does not add any tags
+        text = str(soup) if url.endswith(".txt") or tagCount == 0 else extract_text(soup)
         tokens = tokenizer(text, url)
 
         # check if page is low value
-        tagCount = len(soup.findAll())
         tokenCount = len(tokens)
         if isLowValue(tagCount, tokenCount):
             add_url_to_blacklist(url, "low info value")
             if resp.url != url:
                 add_url_to_blacklist(resp.url, "low info value")
             return set()
+
+        #Add this url to unique urls
+        unique_url_count += 1
+        #count url in subdomain
+        subdomainInfo.countUrl(url)
+        
 
         text = getFootprint(tokens)
 
@@ -453,17 +460,18 @@ def extract_next_links(url, resp):
         previouspage = url
         pageFootprints[url] = text
     else:
+        #Add this url to unique urls
+        unique_url_count += 1
+        #count url in subdomain
+        subdomainInfo.countUrl(url)
+
         previouspage = None
 
         
     #Join relative and absolute paths
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
-    #Add this url to unique urls
-    unique_urls.add(url)
-
-    #count url in subdomain
-    subdomainInfo.countUrl(url)
+    
 
     return extracted
     
