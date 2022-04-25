@@ -420,13 +420,7 @@ def extract_next_links(url, resp):
             add_url_to_blacklist(url, "low info value")
             if resp.url != url:
                 add_url_to_blacklist(resp.url, "low info value")
-            return set()
-
-        #Add this url to unique urls
-        unique_url_count += 1
-        #count url in subdomain
-        subdomainInfo.countUrl(url)
-        
+            return set()        
 
         text = getFootprint(tokens)
 
@@ -460,14 +454,13 @@ def extract_next_links(url, resp):
         previouspage = url
         pageFootprints[url] = text
     else:
-        #Add this url to unique urls
-        unique_url_count += 1
-        #count url in subdomain
-        subdomainInfo.countUrl(url)
-
         previouspage = None
 
-        
+    #Add this url to unique urls
+    unique_url_count += 1
+    #count url in subdomain
+    subdomainInfo.countUrl(url)
+
     #Join relative and absolute paths
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
