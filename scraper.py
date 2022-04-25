@@ -5,14 +5,16 @@ from collections import Counter
 import os
 from utils.download import download
 import time
-import robotparser
 from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 import json
 import pickle
 import signal
 
+#urllib.robotparser modified to give Allow entries higher precedence 
+import robotparser
 
+# SIGINT handler to save the data used by the scraper and exit gracefully
 def siginthandler(signum, fname):
     print("\nCLICKED CTRL-C")
     print_info()
@@ -40,12 +42,13 @@ token_counts = {}
 longest_page = ""
 longest_cnt = 0
 previouspage = None
-
 crawler = None
 
-token_pattern = r"[a-zA-Z'-]{2,}"
-
+# contains information about all visited subdomains
 class SubdomainInfo:
+    # each subdomain has an entry (SubdomainEntry) saved in the self.data of SubdomainInfo
+    # each entry contains the number of urls discovered while crawling and the robots.txt parser object
+    # the robots.txt parser caches the robots.txt file for the domain and can be used to verify that a url on the subdomain can be crawled
     class SubdomainEntry:
         def __init__(self, netloc):
             self.netloc = netloc
@@ -55,6 +58,10 @@ class SubdomainInfo:
         def canFetch(self, url):
             return self.robots is None or self.robots.can_fetch('*', url)
 
+        # give a url on the subdomain
+        # download the robots.txt file and parse it
+        # if the robots.txt file contains a sitemap of type txt, download it and add each of the urls in it to the frontier
+        # if the robots.txt file contains a sitemap that does not have a .txt file extension, then add it to the frontier
         def process_robots(self, url):
             robotsurl = url.split(self.netloc)[0] + self.netloc+"/robots.txt"
 
@@ -86,6 +93,10 @@ class SubdomainInfo:
         self.data = {}
         self.icssubdomains = []
     
+    # given a url, check if the subdomain has been encountered before
+    # if it has not, then create a new subdomain entry and process the robots.txt file if it exists
+    # if applicable, append the subdomain to the list of subdomains in ics.uci.edu
+    # finally, return the subdomain entry
     def process_url(self, url):
         netloc = urlparse(url).netloc
         if not netloc in self.data:
@@ -101,6 +112,7 @@ class SubdomainInfo:
         
         return self.data[netloc]
 
+    # increment the counter for the number of urls discovered by the subdomain containing the given url
     def countUrl(self, url):
         netloc = urlparse(url).netloc
         if not netloc in self.data:
@@ -108,11 +120,12 @@ class SubdomainInfo:
         
         self.data[netloc].num_urls += 1
 
-    # print all sub
+    # print all subdomains on ics.uci.edu sorted by the subdomain string alphabetically
     def showAllICSSubDomainUrlCounts(self):
         print( "\n".join([ ", ".join(s_item)
                         for s_item in sorted( zip(self.icssubdomains, [str(self.data[subdomain].num_urls) for subdomain in self.icssubdomains]) ) ]) )
 
+# scheme and netloc patterns for filtering out invalid urls
 scheme_pattern = re.compile(r"^https?$")
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
@@ -125,7 +138,8 @@ bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz|scm|img)$")
-
+# token pattern
+token_pattern = r"[a-zA-Z'-]{2,}"
 # English stopwords
 stopwords = {"a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren\'t", "as", "at",
             "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could",
@@ -140,11 +154,15 @@ stopwords = {"a", "about", "above", "after", "again", "against", "all", "am", "a
             "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when",
             "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
             "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"}
+
+# the subdomain info object
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
-# blacklist pattern list
-#
+# initializes all the global variables
+# SubdomainInfo is saved as a serializing object. It is unpickled from the file specified in config.ini
+# All other data is saved in a JSON file. The compiled regex patterns cannot be saved in a JSON file.
+# Their string patterns are saved, and they are recompiled when the scraper is initialized
 def init(tcrawler):
     global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
     crawler = tcrawler
@@ -172,6 +190,7 @@ def init(tcrawler):
         with open(crawler.config.temp_scraper_subdomain_info, "rb") as f:
             subdomainInfo = pickle.load(f)
 
+# find the 50 most common tokens in the token_counts dictionary
 def mostcommontokens():
     mostcommon = set()
     token_count_items = list(token_counts.items())
@@ -192,7 +211,13 @@ def print_info():
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
     subdomainInfo.showAllICSSubDomainUrlCounts()
 
-# saves blacklist pattern list to file path provided
+# save all the global variables to disk
+# the SubdomainInfo instance is serialized using the pickle library
+# the temporary blacklist pattern is 
+# everything except blacklist is deleted when the crawler is launched with the restart flag
+# the permanent blacklist contains different reasons for blacklisting, which are the keys in the dictionary
+# the value for each reason key is another dictionary with string regex patterns as keys and them compiled as the values
+# Only the string regex are saved to disk (not the compiled ones), and they are recompiled when the program launches again
 def save():
     if crawler is None:
         return
@@ -217,7 +242,9 @@ def save():
     with open(crawler.config.temp_scraper_subdomain_info, "wb") as f:
         pickle.dump(subdomainInfo, f)
 
-# Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
+# Check if there is any repetition in path in the URL
+# return a list of paths that are repeated more than the threshold specified in config.ini
+# this is used to permanently ban url patterns starting with the url up to the first repeating path
 def getPathRepeat(urlpath):
     lst = urlpath.split('/')
     dict1 = dict(Counter(lst))
@@ -402,6 +429,8 @@ def extract_next_links(url, resp):
             check_similiar_queries(url, text)
         #check if footprint is similar to prev page
         
+        # if the url has a page that linked it and it or the page that linked it are not query pages, then check their similarity
+        # if they are more similar than the similarity threshold, then do not extract any links from the current url
         prev = None
         if url in prevURL:
             prev = prevURL[url]
@@ -411,6 +440,8 @@ def extract_next_links(url, resp):
                     print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
         
+        # if the previous page that the crawler checked is not the page that linked the current page
+        # then check their similarity
         if not previouspage is None and previouspage != prev \
                 and (not "?" in url or not "?" in previouspage) \
                 and (previouspage in pageFootprints):
@@ -545,7 +576,6 @@ def is_trap(url):
 
 # Adds a regex pattern into temp blacklist
 # cancels all urls that match regex
-
 def temporarily_blacklist(regexpattern):
     print(f"TEMP BLACKLIST {regexpattern}")
     tempregex = re.compile(regexpattern)
