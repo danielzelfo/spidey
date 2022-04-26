@@ -133,7 +133,7 @@ netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|infor
 bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
-            + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
+            + r"|ps|eps|tex|ppt|pptx|ppsx|doc|docx|xls|xlsx|names"
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
@@ -299,18 +299,18 @@ def textSimilarity(footprint1, footprint2):
             counter += 1
     similarity = counter/length
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
-    if similarity >= .90 and similaritylength > .90:
-        print("Texts are near or exact duplicate!")
+    # if similarity >= .90 and similaritylength > .90:
+    #     print("Texts are near or exact duplicate!")
     print("similarity: ", similarity, similaritylength)
     return similarity, similaritylength
 
 def getFootprint(lst):
     dict1 = computeWordFrequencies(lst)
     keys = list(dict1.keys())
-    vector = [0] * 128
+    vector = [0] * 64
     for i in keys:
         key = i
-        i = format(hash(i), '0>128b')[-128:]                      #hash tokens into 128 bit
+        i = format(hash(i), '0>64b')[-64:]                      #hash tokens into 64 bit
         for j in range(len(vector)):
             if i[j] == "1":
                 vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
@@ -422,7 +422,8 @@ def extract_next_links(url, resp):
 
         # check other queries at same subdomain+path
         if "?" in url:
-            check_similiar_queries(url, footprint)
+            if check_similiar_queries(url, footprint): # this temporarily blacklist a query page if it is similar too many times
+                return set() # do not extract links if the query is similar
         #check if footprint is similar to prev page
 
         # check if page is low value
@@ -514,8 +515,8 @@ def check_similiar_queries(url, footprint):
         # if similarity exceeds threshold/counter of previous similiar queries
         # temp blacklist url
         # otherwise reduce counter
-        if similarity[0] > 0.90 and similarity[1] > 0.90:
-            if(query_dict[current_key][1] >= counter_threshold):
+        if similarity[0] > 0.85: # only checking the similarity of the content (not length)
+            if(query_dict[current_key][1] >= counter_threshold - 1): # (count starts at 0)
                 temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
                 temporarily_blacklist(temp_blacklist_url)
                 del query_dict[current_key]
@@ -523,12 +524,14 @@ def check_similiar_queries(url, footprint):
                 counter = query_dict[current_key][1]
                 query_dict[current_key] = [footprint, counter + 1]
                 print("INCREASE QUERY COUNTER to:", counter + 1, "for", current_key)
-        else:
+            return True
+        else: #decrease if the similarity of content is less than the threshold / update footprint
             query_dict[current_key][0] = footprint
             query_dict[current_key][1] //= 2
             print("DECREASE QUERY COUNTER to:", query_dict[current_key][1], "for", current_key)
     else:
         query_dict[current_key] = [footprint, 0]
+    return False
 
 
 # check if a url is blacklisted
@@ -537,11 +540,11 @@ def is_blacklisted(url):
     for reason in blacklist:
         for pattern in blacklist[reason]:
             if blacklist[reason][pattern].match(url):
-                print(url, "is blacklisted")
+                #print(url, "is blacklisted")
                 return True
     for pattern in temp_blacklist:
         if temp_blacklist[pattern].match(url):
-            print(url, "is temp blacklisted")
+            #print(url, "is temp blacklisted")
             return True
     return False
 
