@@ -207,6 +207,7 @@ def mostcommontokens():
 def print_info():
     print(mostcommontokens())
     print(f"Number of unique urls: {unique_url_count}")
+    print(f"Total number of urls checked: {len(crawler.frontier.save)}")
     print("longest page:" + longest_page)
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
     subdomainInfo.showAllICSSubDomainUrlCounts()
@@ -299,8 +300,6 @@ def textSimilarity(footprint1, footprint2):
             counter += 1
     similarity = counter/length
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
-    # if similarity >= .90 and similaritylength > .90:
-    #     print("Texts are near or exact duplicate!")
     print("similarity: ", similarity, similaritylength)
     return similarity, similaritylength
 
@@ -343,7 +342,6 @@ def response_invalid(resp):
 
 # Add a new URL to blacklist
 def add_url_to_blacklist(url, reason):
-
     patternstr = f"^{re.escape(url)}{'?' if url.endswith('/') else ''}$"
     add_pattern_to_blacklist(patternstr, reason=reason)
 
@@ -441,7 +439,7 @@ def extract_next_links(url, resp):
             prev = prevURL[url]
             if (not "?" in url or not "?" in prev) and prev in pageFootprints:
                 sim = textSimilarity(footprint, pageFootprints[prev])
-                if sim[0] > 0.90 and sim[1] > 0.90:
+                if sim[0] > 0.875 and sim[1] > 0.875:
                     print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
         
@@ -451,7 +449,7 @@ def extract_next_links(url, resp):
                 and (not "?" in url or not "?" in previouspage) \
                 and (previouspage in pageFootprints):
             sim = textSimilarity(footprint, pageFootprints[previouspage])
-            if sim[0] > 0.90 and sim[1] > 0.90:
+            if sim[0] > 0.875 and sim[1] > 0.875:
                 print("SIMILAR PAGE to previous", url, previouspage, sim)
                 return set()
 
