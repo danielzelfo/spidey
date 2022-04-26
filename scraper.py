@@ -343,7 +343,8 @@ def response_invalid(resp):
 
 # Add a new URL to blacklist
 def add_url_to_blacklist(url, reason):
-    patternstr = f"^{re.escape(url)}$"
+
+    patternstr = f"^{re.escape(url)}{'?' if url.endswith('/') else ''}$"
     add_pattern_to_blacklist(patternstr, reason=reason)
 
 # Saves a url patter to blacklist and cancels out blacklisted urls from froniter
@@ -416,7 +417,7 @@ def extract_next_links(url, resp):
 
         # Tokenize the text and add to token list
         # Note: this only works for html.parser which does not add any tags
-        textcontent = str(soup) if url.endswith(".txt") or tagCount == 0 else extract_text(soup)
+        textcontent = str(soup) if urlparse(url).path.endswith(".txt") or tagCount == 0 else extract_text(soup)
         tokens = tokenizer(textcontent, url)
         footprint = getFootprint(tokens)
 
@@ -424,7 +425,6 @@ def extract_next_links(url, resp):
         if "?" in url:
             if check_similiar_queries(url, footprint): # this temporarily blacklist a query page if it is similar too many times
                 return set() # do not extract links if the query is similar
-        #check if footprint is similar to prev page
 
         # check if page is low value
         tokenCount = len(tokens)
@@ -517,7 +517,7 @@ def check_similiar_queries(url, footprint):
         # otherwise reduce counter
         if similarity[0] > 0.85: # only checking the similarity of the content (not length)
             if(query_dict[current_key][1] >= counter_threshold - 1): # (count starts at 0)
-                temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
+                temp_blacklist_url = f"^{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*$"
                 temporarily_blacklist(temp_blacklist_url)
                 del query_dict[current_key]
             else:
@@ -566,7 +566,7 @@ def is_trap(url):
     if len(repeats) != 0:
         urlpart = url[:min(url.find(repeat) for repeat in repeats)-1]
         
-        patternstr = f"^{re.escape(urlpart)}.*"
+        patternstr = f"^{re.escape(urlpart)}.*$"
 
         #delete blacklisted patterns that are included in the new pattern
         if "repeating path trap" in blacklist:
@@ -580,7 +580,7 @@ def is_trap(url):
         add_pattern_to_blacklist(patternstr, True, "repeating path trap")
 
         for r in repeats:
-            pattern = f"{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}"
+            pattern = f"^{re.escape('/'.join(urlpart.split('/')[:-1]))}\\/.*{r}.*$"
             temporarily_blacklist(pattern)
            
         return True
