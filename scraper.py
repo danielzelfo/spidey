@@ -299,8 +299,9 @@ def textSimilarity(footprint1, footprint2):
             counter += 1
     similarity = counter/length
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
-    if similarity >= .90 and similaritylength > .90:
+    if similarity >= .85 and similaritylength > .85:
         print("Texts are near or exact duplicate!")
+    print("similarity: ", similarity, similaritylength)
     return similarity, similaritylength
 
 def getFootprint(lst):
@@ -361,9 +362,13 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
 # that contain "high value information"
 def scraper(url, resp):
     links = extract_next_links(url, resp)
-    outlinks = set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
+    outlinks = set()
+    for link in links:
+        sortedq = sort_by_query(link) 
+        if allurlchecks(sortedq) and subdomainInfo.process_url(sortedq).canFetch(link):
+            outlinks.add(sortedq)
     for outlink in outlinks:
-        prevURL[outlink] = url
+        prevURL[outlink] = sortedq
     return outlinks
 
 
@@ -424,7 +429,7 @@ def extract_next_links(url, resp):
 
         text = getFootprint(tokens)
 
-        
+
         # check other queries at same subdomain+path
         if "?" in url:
             check_similiar_queries(url, text)
@@ -437,7 +442,7 @@ def extract_next_links(url, resp):
             prev = prevURL[url]
             if (not "?" in url or not "?" in prev) and prev in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[prev])
-                if sim[0] > 0.9 and sim[1] > 0.9:
+                if sim[0] > 0.90 and sim[1] > 0.90:
                     print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
         
@@ -447,7 +452,7 @@ def extract_next_links(url, resp):
                 and (not "?" in url or not "?" in previouspage) \
                 and (previouspage in pageFootprints):
             sim = textSimilarity(text, pageFootprints[previouspage])
-            if sim[0] > 0.9 and sim[1] > 0.9:
+            if sim[0] > 0.90 and sim[1] > 0.90:
                 print("SIMILAR PAGE to previous", url, previouspage, sim)
                 return set()
 
@@ -511,7 +516,7 @@ def check_similiar_queries(url, text):
         # if similarity exceeds threshold/counter of previous similiar queries
         # temp blacklist url
         # otherwise reduce counter
-        if similarity[0] > 0.9 and similarity[1] > 0.9:
+        if similarity[0] > 0.90 and similarity[1] > 0.90:
             if(query_dict[current_key][1] >= counter_threshold):
                 temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
                 temporarily_blacklist(temp_blacklist_url)
@@ -519,8 +524,11 @@ def check_similiar_queries(url, text):
             else:
                 counter = query_dict[current_key][1]
                 query_dict[current_key] = [text, counter + 1]
+                print("INCREASE QUERY COUNTER to:", counter + 1, "for", current_key)
         else:
+            query_dict[current_key][0] = text
             query_dict[current_key][1] //= 2
+            print("DECREASE QUERY COUNTER to:", query_dict[current_key][1], "for", current_key)
     else:
         query_dict[current_key] = [text, 0]
 
@@ -531,9 +539,11 @@ def is_blacklisted(url):
     for reason in blacklist:
         for pattern in blacklist[reason]:
             if blacklist[reason][pattern].match(url):
+                print(url, "is blacklisted")
                 return True
     for pattern in temp_blacklist:
         if temp_blacklist[pattern].match(url):
+            print(url, "is temp blacklisted")
             return True
     return False
 
