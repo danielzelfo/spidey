@@ -299,7 +299,7 @@ def textSimilarity(footprint1, footprint2):
             counter += 1
     similarity = counter/length
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
-    if similarity >= .85 and similaritylength > .85:
+    if similarity >= .90 and similaritylength > .90:
         print("Texts are near or exact duplicate!")
     print("similarity: ", similarity, similaritylength)
     return similarity, similaritylength
@@ -416,8 +416,14 @@ def extract_next_links(url, resp):
 
         # Tokenize the text and add to token list
         # Note: this only works for html.parser which does not add any tags
-        text = str(soup) if url.endswith(".txt") or tagCount == 0 else extract_text(soup)
-        tokens = tokenizer(text, url)
+        textcontent = str(soup) if url.endswith(".txt") or tagCount == 0 else extract_text(soup)
+        tokens = tokenizer(textcontent, url)
+        footprint = getFootprint(tokens)
+
+        # check other queries at same subdomain+path
+        if "?" in url:
+            check_similiar_queries(url, footprint)
+        #check if footprint is similar to prev page
 
         # check if page is low value
         tokenCount = len(tokens)
@@ -425,15 +431,7 @@ def extract_next_links(url, resp):
             add_url_to_blacklist(url, "low info value")
             if resp.url != url:
                 add_url_to_blacklist(resp.url, "low info value")
-            return set()        
-
-        text = getFootprint(tokens)
-
-
-        # check other queries at same subdomain+path
-        if "?" in url:
-            check_similiar_queries(url, text)
-        #check if footprint is similar to prev page
+            return set()   
         
         # if the url has a page that linked it and it or the page that linked it are not query pages, then check their similarity
         # if they are more similar than the similarity threshold, then do not extract any links from the current url
@@ -441,7 +439,7 @@ def extract_next_links(url, resp):
         if url in prevURL:
             prev = prevURL[url]
             if (not "?" in url or not "?" in prev) and prev in pageFootprints:
-                sim = textSimilarity(text, pageFootprints[prev])
+                sim = textSimilarity(footprint, pageFootprints[prev])
                 if sim[0] > 0.90 and sim[1] > 0.90:
                     print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
@@ -451,13 +449,13 @@ def extract_next_links(url, resp):
         if not previouspage is None and previouspage != prev \
                 and (not "?" in url or not "?" in previouspage) \
                 and (previouspage in pageFootprints):
-            sim = textSimilarity(text, pageFootprints[previouspage])
+            sim = textSimilarity(footprint, pageFootprints[previouspage])
             if sim[0] > 0.90 and sim[1] > 0.90:
                 print("SIMILAR PAGE to previous", url, previouspage, sim)
                 return set()
 
         previouspage = url
-        pageFootprints[url] = text
+        pageFootprints[url] = footprint
     else:
         previouspage = None
 
@@ -498,7 +496,7 @@ def extract_text(soup):
 # Uses text similiarity to check if url with specfic queries
 # is similiar to previously scraped urls. Temp Blacklists those 
 # when a certain threshold is reached.
-def check_similiar_queries(url, text):
+def check_similiar_queries(url, footprint):
     counter_threshold = 3
 
     #parse url
@@ -512,7 +510,7 @@ def check_similiar_queries(url, text):
     #check if url exists in query dict
     if(current_key in query_dict):
         #get similarity of current text and previous stored text
-        similarity = textSimilarity(text, query_dict[current_key][0])
+        similarity = textSimilarity(footprint, query_dict[current_key][0])
         # if similarity exceeds threshold/counter of previous similiar queries
         # temp blacklist url
         # otherwise reduce counter
@@ -523,14 +521,14 @@ def check_similiar_queries(url, text):
                 del query_dict[current_key]
             else:
                 counter = query_dict[current_key][1]
-                query_dict[current_key] = [text, counter + 1]
+                query_dict[current_key] = [footprint, counter + 1]
                 print("INCREASE QUERY COUNTER to:", counter + 1, "for", current_key)
         else:
-            query_dict[current_key][0] = text
+            query_dict[current_key][0] = footprint
             query_dict[current_key][1] //= 2
             print("DECREASE QUERY COUNTER to:", query_dict[current_key][1], "for", current_key)
     else:
-        query_dict[current_key] = [text, 0]
+        query_dict[current_key] = [footprint, 0]
 
 
 # check if a url is blacklisted
