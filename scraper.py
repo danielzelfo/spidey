@@ -26,7 +26,7 @@ def siginthandler(signum, fname):
     crawler.frontier.save.sync()
     print("[...] saving scraper data")
     save()
-    print("[...] exiting")
+    print(f"[...] exiting. Total crawled = {len(crawler.frontier.save)}")
     exit(1)
 
 signal.signal(signal.SIGINT, siginthandler)
