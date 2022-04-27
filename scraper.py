@@ -207,7 +207,6 @@ def mostcommontokens():
 def print_info():
     print(mostcommontokens())
     print(f"Number of unique urls: {unique_url_count}")
-    print(f"Total number of urls checked: {len(crawler.frontier.save)}")
     print("longest page:" + longest_page)
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
     subdomainInfo.showAllICSSubDomainUrlCounts()
