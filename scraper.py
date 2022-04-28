@@ -14,8 +14,8 @@ import signal
 
 
 def siginthandler(signum, fname):
-    print_info()
     print("\nCLICKED CTRL-C")
+    print_info()
     print("[...] closing and joining threads")
     for worker in crawler.workers:
         worker.exit = True
@@ -36,9 +36,10 @@ blacklist = {}
 temp_blacklist = {}
 unique_urls = set()
 query_dict = {}
-token_list = []
+token_counts = {}
 longest_page = ""
 longest_cnt = 0
+previouspage = None
 
 crawler = None
 
@@ -112,9 +113,13 @@ class SubdomainInfo:
         print( "\n".join([ ", ".join(s_item)
                         for s_item in sorted( zip(self.icssubdomains, [str(self.data[subdomain].num_urls) for subdomain in self.icssubdomains]) ) ]) )
 
+#valid scheme pattern
 scheme_pattern = re.compile(r"^https?$")
+
+#valid netloc pattern
 netloc_pattern = re.compile(r"^(([-a-z0-9]+\.)*(ics\.uci\.edu|cs\.uci\.edu|informatics\.uci\.edu|stat\.uci\.edu))"
                             +r"|today\.uci\.edu\/department\/information_computer_sciences$")
+
 # Extensions not being crawled
 bad_ext_path_pattern = re.compile(r".*\.(css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
@@ -139,21 +144,25 @@ stopwords = {"a", "about", "above", "after", "again", "against", "all", "am", "a
             "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when",
             "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would",
             "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves"}
+
 subdomainInfo = SubdomainInfo()
 
 # initialize scraper
 # blacklist pattern list
 #
 def init(tcrawler):
-    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_list, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints
+    global crawler, blacklist, temp_blacklist, unique_urls, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
     crawler = tcrawler
 
+    #open local blacklist file and store into blacklist dictionary
     if os.path.exists(crawler.config.blacklist_file):
         with open(crawler.config.blacklist_file, "r") as f:
             blacklist = json.load(f)
         for reason in blacklist:
             blacklist[reason] = {pattern: re.compile(pattern) for pattern in blacklist[reason]}
     
+    #open and store save scraper info.
+    # used when program is interupted
     if os.path.exists(crawler.config.temp_scraper_info):
         with open(crawler.config.temp_scraper_info, "r") as f:
             data = json.load(f)
@@ -162,24 +171,44 @@ def init(tcrawler):
             query_dict = data["query_dict"]
             prevURL = data["prevURL"]
             pageFootprints = data["pageFootprints"]
-            token_list = data["token_list"]
+            token_counts = data["token_counts"]
             longest_page = data["longest_page"]
             longest_cnt = data["longest_cnt"]
+            previouspage = data["previouspage"]
     
+    #open and store save subdomain info.
+    # used when program is interupted
     if os.path.exists(crawler.config.temp_scraper_subdomain_info):
         with open(crawler.config.temp_scraper_subdomain_info, "rb") as f:
             subdomainInfo = pickle.load(f)
 
+# Finds the top 50 tokens
+# returns as list in sorted descending order
+def mostcommontokens():
+    mostcommon = set()
+    token_count_items = list(token_counts.items()) #create list of token items
+    # iterate 50 times to find most common words
+    for _ in range(50):
+        most = -1
+        #iterate through token count list
+        for i in range(len(token_count_items)):
+            #Find the max of token list thats not already added into most common list of tokens
+            if (most == -1 or token_count_items[i][1] > token_count_items[most][1]) and not i in mostcommon:
+                most = i
+        mostcommon.add(most)
+    #sort and return list  in descending order
+    return sorted([token_count_items[idx] for idx in mostcommon], key=lambda x: x[1], reverse=True)
+
 # prints report information
 # most common urls, unique urls, longest page, number of subdomain crawled
 def print_info():
-    print(Counter(token_list).most_common(50))
-    print(f"Number of unique urls: {len(unique_urls)}")
-    print("longest page:" + longest_page)
-    print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
+    print(mostcommontokens())                               #Top 50 tokens
+    print(f"Number of unique urls: {len(unique_urls)}")     #Num unique Urls
+    print("longest page:" + longest_page)                   #Url of longest webpage
+    print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")  #number of unique subdomains crawled
     subdomainInfo.showAllICSSubDomainUrlCounts()
 
-# saves blacklist pattern list to file path provided
+# Saves blacklist pattern list to file path provided
 def save():
     if crawler is None:
         return
@@ -193,27 +222,27 @@ def save():
         "query_dict": query_dict,
         "prevURL": prevURL,
         "pageFootprints": pageFootprints,
-        "token_list": token_list,
+        "token_counts": token_counts,
         "longest_page": longest_page,
-        "longest_cnt": longest_cnt
+        "longest_cnt": longest_cnt,
+        "previouspage": previouspage
     }
     with open(crawler.config.temp_scraper_info, "w") as f:
-        json.dump(tempdict, f, indent=4)
+        json.dump(tempdict, f)
     
     with open(crawler.config.temp_scraper_subdomain_info, "wb") as f:
         pickle.dump(subdomainInfo, f)
 
 # Check if there is any repetition in path in the URL, if there is then do not add it to the frontier
 def getPathRepeat(urlpath):
-    lst = urlpath.split('/')
-    dict1 = dict(Counter(lst))
+    lst = urlpath.split('/')    #split path by /
+    dict1 = dict(Counter(lst))  #Create Counter object to count path parameters
+
     return [key for key,value in dict1.items() if value > crawler.config.path_repeat_threshold]
 
 # Tokenize a string into a list of words and put into token list, also finding the longest page
 def tokenizer(string, url):
-    global longest_page
-    global longest_cnt
-    global token_pattern
+    global longest_page, longest_cnt
     
     #lowercase string
     string = string.lower()
@@ -229,39 +258,61 @@ def tokenizer(string, url):
     if current_length >= longest_cnt:
         longest_page = url
         longest_cnt = current_length
-    token_list.extend(lst)
+    
+    # Count tokens or add to token_count
+    for token in lst:
+        if not token in token_counts:
+            token_counts[token] = 0
+        token_counts[token] += 1
+    
     return lst
 
+# Compares number of tags with number of tokens
+# Considers page low value if ratio of tokens to tag is less than a set amount
+# or if tokens is less than a certain value
+# Returns bool
 def isLowValue(tagCount, tokenCount):
+    # Compare ratio of tokenCount to tagCount and minimum threshold of tokens
     if tagCount > 3:
-        if tokenCount/tagCount < 0.5 and tokenCount < 300:
+        if tokenCount/tagCount < 0.5 and tokenCount < 150:
             return True
     else:
         #tags <html><body><p> are added to pages with no tags
         #assuming text file
-        if tokenCount < 300:
+        if tokenCount < 150:
             return True
     return False
 
+# Takes in two tuples (list of bits, integer representing length of tokens)
+# Compares two footprints based on similiarty between bits and length of tokens
+# returns calculated similiarties
 def textSimilarity(footprint1, footprint2):
     counter = 0
     length = len(footprint1[0])
-    for i in range(length):
+    # Count number of similar bits in each footprint
+    for i in range(length): 
         if footprint1[0][i] == footprint2[0][i]:
             counter += 1
+    #Calculate percent of similar bits
     similarity = counter/length
+
+    #Calculate ratio of lengths between two footprints
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
-    if similarity >= .85 and similaritylength > .85:
+    
+    if similarity >= .90 and similaritylength > .90:
         print("Texts are near or exact duplicate!")
+
     return similarity, similaritylength
 
+# Takes a list of tokens and returns a tuple of array of bits
+# representing the fingerprint/footprint of tokens and length of original list
 def getFootprint(lst):
     dict1 = computeWordFrequencies(lst)
     keys = list(dict1.keys())
     vector = [0] * 128
     for i in keys:
         key = i
-        i = format(hash(i), '0>128b')                      #hash tokens into 128 bit
+        i = format(hash(i), '0>128b')[-128:]                      #hash tokens into 128 bit
         for j in range(len(vector)):
             if i[j] == "1":
                 vector[j] = vector[j] + (dict1[key] * int(i[j]))    #if index of key is 1, multiply token freq by 1
@@ -272,8 +323,9 @@ def getFootprint(lst):
             vector[i] = 1                                       #if index is positive, set vector[index]=1
         else:
             vector[i] = 0                                       #if index is negative, set vector[index]=0
-    return (vector, len(lst))
+    return ("".join([str(z) for z in vector]), len(lst))
 
+# Creates a frequency dictionary with tokens as keys, frequencies as values
 def computeWordFrequencies(alist):
     adict = dict()
     for i in alist:
@@ -283,16 +335,20 @@ def computeWordFrequencies(alist):
             adict[i] = adict[i] + 1
     return adict
 
+# Performs a series of checks to see if url is valid, is blacklisted, or is a trap.
 def allurlchecks(url):
     return is_valid(url) and not is_blacklisted(url) and not is_trap(url)
 
+# Checks if response contains valid response code/content
 def response_invalid(resp):
     return resp.status != 200 or not resp.raw_response or not resp.raw_response.content
 
+# Add a new URL to blacklist
 def add_url_to_blacklist(url, reason):
     patternstr = f"^{re.escape(url)}$"
     add_pattern_to_blacklist(patternstr, reason=reason)
-    
+
+# Saves a url patter to blacklist and cancels out blacklisted urls from froniter
 def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
     print("BLACKLISTED:", pattern, f"for reason [{reason}]")
     if not reason in blacklist:
@@ -302,8 +358,13 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
     if cancel_frontier:
         crawler.frontier.cancel_urls(regex)
 
+
+# if given url and resp are valid
+# scraper will extract and return urls 
+# that contain "high value information"
 def scraper(url, resp):
     links = extract_next_links(url, resp)
+    #Process links by query. Check link is valid, blacklisted, or trap. Process subdomain info.
     outlinks = set(sort_by_query(link) for link in links if allurlchecks(link) and subdomainInfo.process_url(link).canFetch(link))
     for outlink in outlinks:
         prevURL[outlink] = url
@@ -317,6 +378,7 @@ def absolute_url(page_url, outlink_url):
     return urldefrag(newurl)[0]
 
 def extract_next_links(url, resp):
+    global previouspage
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
     # resp.status: the status code returned by the server. 200 is OK, you got the page. Other numbers mean that there was some kind of problem.
@@ -369,17 +431,31 @@ def extract_next_links(url, resp):
         if "?" in url:
             check_similiar_queries(url, text)
         #check if footprint is similar to prev page
-        elif url in prevURL:
+        
+        prev = None
+        if url in prevURL:
             prev = prevURL[url]
-            if prev in pageFootprints:
+            if (not "?" in url or not "?" in prev) and prev in pageFootprints:
                 sim = textSimilarity(text, pageFootprints[prev])
-                if sim[0] > 0.85 and sim[1] > 0.85:
-                    print("SIMILAR PAGES", url, prev, sim)
+                if sim[0] > 0.9 and sim[1] > 0.9:
+                    print("SIMILAR PAGE to linked from", url, prev, sim)
                     return set()
-            pageFootprints[url] = text
+        
+        if not previouspage is None and previouspage != prev \
+                and (not "?" in url or not "?" in previouspage) \
+                and (previouspage in pageFootprints):
+            sim = textSimilarity(text, pageFootprints[previouspage])
+            if sim[0] > 0.9 and sim[1] > 0.9:
+                print("SIMILAR PAGE to previous", url, previouspage, sim)
+                return set()
+
+        previouspage = url
+        pageFootprints[url] = text
+    else:
+        previouspage = None
 
         
-
+    #Join relative and absolute paths
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
     #Add this url to unique urls
@@ -411,11 +487,11 @@ def sort_by_query(link):
 def extract_text(soup):
     # Extract text from the page
     return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
+
 # Uses text similiarity to check if url with specfic queries
-# is similiar to previously scraped urls. Temp Blacklists those
+# is similiar to previously scraped urls. Temp Blacklists those 
 # when a certain threshold is reached.
 def check_similiar_queries(url, text):
-    global query_dict
     counter_threshold = 3
 
     #parse url
@@ -428,9 +504,13 @@ def check_similiar_queries(url, text):
 
     #check if url exists in query dict
     if(current_key in query_dict):
+        #get similarity of current text and previous stored text
         similarity = textSimilarity(text, query_dict[current_key][0])
-        if similarity[0] > 0.85 and similarity[1] > 0.85:
-            if(query_dict[current_key][1] >= 3):
+        # if similarity exceeds threshold/counter of previous similiar queries
+        # temp blacklist url
+        # otherwise reduce counter
+        if similarity[0] > 0.9 and similarity[1] > 0.9:
+            if(query_dict[current_key][1] >= counter_threshold):
                 temp_blacklist_url = f"{re.escape(urlunsplit((parsed.scheme, netloc, path, '', '')))}.*"
                 temporarily_blacklist(temp_blacklist_url)
                 del query_dict[current_key]
@@ -467,6 +547,7 @@ def is_blacklisted(url):
 #           EX: https://www.example.com/x/a/b/c/a/b/c/a/b/c
 #               => temporarily blacklist https://www.example.com/.*a, https://www.example.com/x/.*b, https://www.example.com/x/a/.*c
 def is_trap(url):
+    #parse url
     parsed = urlparse(url)
     urlpath = parsed.path.lower()
     repeats = getPathRepeat(urlpath)
@@ -493,7 +574,7 @@ def is_trap(url):
         return True
     return False
 
-# Adds a regex patter into temp blacklist
+# Adds a regex pattern into temp blacklist
 # cancels all urls that match regex
 
 def temporarily_blacklist(regexpattern):

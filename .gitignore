@@ -107,7 +107,7 @@ venv.bak/
 .vscode/
 
 *.full.py
-*.shelve
+frontier.shelve
 temp_scraper.json
 temp_scraper_subdomains.pickle
 test.py
