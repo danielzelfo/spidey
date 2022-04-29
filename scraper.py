@@ -167,12 +167,15 @@ def init(tcrawler):
     global crawler, blacklist, temp_blacklist, unique_url_count, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
     crawler = tcrawler
 
+    #open local blacklist file and store into blacklist dictionary
     if os.path.exists(crawler.config.blacklist_file):
         with open(crawler.config.blacklist_file, "r") as f:
             blacklist = json.load(f)
         for reason in blacklist:
             blacklist[reason] = {pattern: re.compile(pattern) for pattern in blacklist[reason]}
     
+    #open and store save scraper info into JSON file.
+    # used when program is interupted
     if os.path.exists(crawler.config.temp_scraper_info):
         with open(crawler.config.temp_scraper_info, "r") as f:
             data = json.load(f)
@@ -186,29 +189,36 @@ def init(tcrawler):
             longest_cnt = data["longest_cnt"]
             previouspage = data["previouspage"]
     
+    #open and store save subdomain info into JSON file.
+    # used when program is interupted
     if os.path.exists(crawler.config.temp_scraper_subdomain_info):
         with open(crawler.config.temp_scraper_subdomain_info, "rb") as f:
             subdomainInfo = pickle.load(f)
 
 # find the 50 most common tokens in the token_counts dictionary
+# returns as list in sorted descending order
 def mostcommontokens():
     mostcommon = set()
-    token_count_items = list(token_counts.items())
+    token_count_items = list(token_counts.items()) #create list of token items
+    # iterate 50 times to find most common words
     for _ in range(50):
         most = -1
+        #iterate through token count list
         for i in range(len(token_count_items)):
+            #Find the max of token list thats not already added into most common list of tokens
             if (most == -1 or token_count_items[i][1] > token_count_items[most][1]) and not i in mostcommon:
                 most = i
         mostcommon.add(most)
+    #sort and return list in descending order
     return sorted([token_count_items[idx] for idx in mostcommon], key=lambda x: x[1], reverse=True)
 
 # prints report information
 # most common urls, unique urls, longest page, number of subdomain crawled
 def print_info():
-    print(mostcommontokens())
-    print(f"Number of unique urls: {unique_url_count}")
-    print("longest page:" + longest_page)
-    print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")
+    print(mostcommontokens())                               #Top 50 tokens
+    print(f"Number of unique urls: {unique_url_count}")     #Num unique Urls
+    print("longest page:" + longest_page)                   #Url of longest webpage
+    print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")  #Number of unique subdomains crawled
     subdomainInfo.showAllICSSubDomainUrlCounts()
 
 # save all the global variables to disk
@@ -246,8 +256,8 @@ def save():
 # return a list of paths that are repeated more than the threshold specified in config.ini
 # this is used to permanently ban url patterns starting with the url up to the first repeating path
 def getPathRepeat(urlpath):
-    lst = urlpath.split('/')
-    dict1 = dict(Counter(lst))
+    lst = urlpath.split('/')    #split path by /
+    dict1 = dict(Counter(lst))  #Create Counter object to count path parameters
     return [key for key,value in dict1.items() if value > crawler.config.path_repeat_threshold]
 
 # Tokenize a string into a list of words and put into token list, also finding the longest page
@@ -269,6 +279,7 @@ def tokenizer(string, url):
         longest_page = url
         longest_cnt = current_length
     
+    # Count tokens or add to token_count
     for token in lst:
         if not token in token_counts:
             token_counts[token] = 0
@@ -281,6 +292,7 @@ def tokenizer(string, url):
 # or if tokens is less than a certain value
 # Returns bool
 def isLowValue(tagCount, tokenCount):
+    # Compare ratio of tokenCount to tagCount and minimum threshold of tokens
     if tagCount > 3:
         if tokenCount/tagCount < 0.5 and tokenCount < 150:
             return True
@@ -290,18 +302,28 @@ def isLowValue(tagCount, tokenCount):
             return True
     return False
 
-
+# Takes in two tuples (list of bits, integer representing length of tokens)
+# Compares two footprints based on similiarty between bits and length of tokens
+# returns calculated similiarties
 def textSimilarity(footprint1, footprint2):
     counter = 0
     length = len(footprint1[0])
+
+    # Count number of similar bits in each footprint
     for i in range(length):
         if footprint1[0][i] == footprint2[0][i]:
             counter += 1
+
+    #Calculate percent of similar bits
     similarity = counter/length
+
+    #Calculate ratio of lengths between two footprints
     similaritylength = min(footprint1[1],footprint2[1])/max(footprint1[1],footprint2[1])
     print("similarity: ", similarity, similaritylength)
     return similarity, similaritylength
 
+# Takes a list of tokens and returns a tuple of array of bits
+# representing the fingerprint/footprint of tokens and length of original list
 def getFootprint(lst):
     dict1 = computeWordFrequencies(lst)
     keys = list(dict1.keys())
@@ -361,6 +383,7 @@ def add_pattern_to_blacklist(pattern, cancel_frontier=False, reason="none"):
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     outlinks = set()
+    #Process links by query. Check link is valid, blacklisted, or trap. Process subdomain info.
     for link in links:
         sortedq = sort_by_query(link) 
         if allurlchecks(sortedq) and subdomainInfo.process_url(sortedq).canFetch(link):
@@ -401,9 +424,10 @@ def extract_next_links(url, resp):
     # check if redirect is a trap
     if resp.url != url and is_trap(resp.url):
         return set()
-    
+
+    # check if urls are valid
     try:
-        tree = html.fromstring(resp.raw_response.content) #check if urls are valid
+        tree = html.fromstring(resp.raw_response.content) 
     except:
         return set()
     
@@ -465,8 +489,6 @@ def extract_next_links(url, resp):
     #Join relative and absolute paths
     extracted = set([absolute_url(url, ol) for ol in tree.xpath('.//a[@href]/@href|.//loc/text()')])
     
-    
-
     return extracted
     
 # sort_by_query will sort a link by querys
@@ -557,9 +579,11 @@ def is_blacklisted(url):
 #           EX: https://www.example.com/x/a/b/c/a/b/c/a/b/c
 #               => temporarily blacklist https://www.example.com/.*a, https://www.example.com/x/.*b, https://www.example.com/x/a/.*c
 def is_trap(url):
+    #parse url
     parsed = urlparse(url)
     urlpath = parsed.path.lower()
     repeats = getPathRepeat(urlpath)
+
     if len(repeats) != 0:
         urlpart = url[:min(url.find(repeat) for repeat in repeats)-1]
         
@@ -574,6 +598,7 @@ def is_trap(url):
             for p in todel:
                 del blacklist["repeating path trap"][p]
         
+        #add url pattern into blacklisted Urls
         add_pattern_to_blacklist(patternstr, True, "repeating path trap")
 
         for r in repeats:
