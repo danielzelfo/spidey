@@ -217,7 +217,7 @@ def mostcommontokens():
 def print_info():
     print(mostcommontokens())                               #Top 50 tokens
     print(f"Number of unique urls: {unique_url_count}")     #Num unique Urls
-    print("longest pages:" + longest_pages)                   #Url of longest webpage
+    print("longest pages:" + str(longest_pages))                   #Url of longest webpage
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")  #Number of unique subdomains crawled
     subdomainInfo.showAllICSSubDomainUrlCounts()
 
