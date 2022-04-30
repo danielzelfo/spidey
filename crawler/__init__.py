@@ -22,6 +22,7 @@ class Crawler(object):
     def start(self):
         self.start_async()
         self.join()
+        # After the crawler stops, it prints nesscessary info for the report and call the save() function
         scraper.print_info()
         scraper.save()
 
