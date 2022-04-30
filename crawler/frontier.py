@@ -75,6 +75,8 @@ class Frontier(object):
         self.save[urlhash] = (url, True)
         self.save.sync()
     
+    # cancel urls that are to be downloaded
+    # this does not remove any urls that have already been downloaded from the shelve
     def cancel_urls(self, urlregex):
         print("CANCEL FRONTIER", urlregex.pattern)
         new_to_be_downloaded = []

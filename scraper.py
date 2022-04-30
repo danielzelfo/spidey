@@ -39,8 +39,8 @@ temp_blacklist = {}
 unique_url_count = 0
 query_dict = {}
 token_counts = {}
-longest_page = ""
-longest_cnt = 0
+longest_pages = ["" for _ in range(10)]
+longest_cnts = [0 for _ in range(10)]
 previouspage = None
 crawler = None
 
@@ -164,7 +164,7 @@ subdomainInfo = SubdomainInfo()
 # All other data is saved in a JSON file. The compiled regex patterns cannot be saved in a JSON file.
 # Their string patterns are saved, and they are recompiled when the scraper is initialized
 def init(tcrawler):
-    global crawler, blacklist, temp_blacklist, unique_url_count, query_dict, token_counts, longest_page, longest_cnt, subdomainInfo, prevURL, pageFootprints, previouspage
+    global crawler, blacklist, temp_blacklist, unique_url_count, query_dict, token_counts, longest_pages, longest_cnts, subdomainInfo, prevURL, pageFootprints, previouspage
     crawler = tcrawler
 
     #open local blacklist file and store into blacklist dictionary
@@ -185,8 +185,8 @@ def init(tcrawler):
             prevURL = data["prevURL"]
             pageFootprints = data["pageFootprints"]
             token_counts = data["token_counts"]
-            longest_page = data["longest_page"]
-            longest_cnt = data["longest_cnt"]
+            longest_pages = data["longest_pages"]
+            longest_cnts = data["longest_cnts"]
             previouspage = data["previouspage"]
     
     #open and store save subdomain info into JSON file.
@@ -217,7 +217,7 @@ def mostcommontokens():
 def print_info():
     print(mostcommontokens())                               #Top 50 tokens
     print(f"Number of unique urls: {unique_url_count}")     #Num unique Urls
-    print("longest page:" + longest_page)                   #Url of longest webpage
+    print("longest pages:" + longest_pages)                   #Url of longest webpage
     print("ALL ICS SUBDOMAINS AND NUMBER OF URLS CRAWLED")  #Number of unique subdomains crawled
     subdomainInfo.showAllICSSubDomainUrlCounts()
 
@@ -242,8 +242,8 @@ def save():
         "prevURL": prevURL,
         "pageFootprints": pageFootprints,
         "token_counts": token_counts,
-        "longest_page": longest_page,
-        "longest_cnt": longest_cnt,
+        "longest_pages": longest_pages,
+        "longest_cnts": longest_cnts,
         "previouspage": previouspage
     }
     with open(crawler.config.temp_scraper_info, "w") as f:
@@ -261,9 +261,7 @@ def getPathRepeat(urlpath):
     return [key for key,value in dict1.items() if value > crawler.config.path_repeat_threshold]
 
 # Tokenize a string into a list of words and put into token list, also finding the longest page
-def tokenizer(string, url):
-    global longest_page, longest_cnt
-    
+def tokenizer(string, url):    
     #lowercase string
     string = string.lower()
     
@@ -273,11 +271,13 @@ def tokenizer(string, url):
     # Remove stopwords from list
     lst = list(filter(lambda a: a != "" and not a in stopwords, lst))
 
-    # Compare this page's content with the longest page
+    # Compare this page's number of tokens with the longest pages
     current_length = len(lst)
-    if current_length >= longest_cnt:
-        longest_page = url
-        longest_cnt = current_length
+    for lp in range(len(longest_pages)):
+        if current_length > longest_cnts[lp]:
+            longest_pages[lp] = url
+            longest_cnts[lp] = current_length
+            break
     
     # Count tokens or add to token_count
     for token in lst:
