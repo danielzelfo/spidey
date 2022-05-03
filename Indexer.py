@@ -17,3 +17,4 @@ class Indexer:
         #     append to end of line ", {document, documentposition, terms, frequency}"
         # if not, add to end of file
         # format: "stem: {document, documentposition, terms, frequency}"
+        pass
