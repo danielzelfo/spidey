@@ -1,9 +1,33 @@
+import os
+import json
+from HTMLParser import HTMLParser
+
 class Indexer:
     def __init__(self):
-        self.alpha_position_index = {}
+        self.stem_positions = {}
+        self.htmlParser = HTMLParser()
         pass
     
+    # filepath ex: aiclub_ics_uci_edu/file.json
     def index(self, filepath):
+        with open(filepath) as f:
+            data = json.load(f)
+            content = data["content"]
+            encoding = data["encoding"]
+            url = data["url"]
+            print("url:", url)
+    
+            textContent = self.htmlParser.extract_text(content, encoding, url)
+            tokens = self.htmlParser.tokenize(textContent)
+            tokenFreq = self.htmlParser.computeWordFrequencies(tokens)
+
+            for token, freq in tokenFreq.items():
+                #write_to_disk(token, docum ent,freq)
+                pass
+             
+
+            
+
         # parse
         # stem
         # ...
@@ -14,7 +38,8 @@ class Indexer:
         # open the disk file
         # check if stem was indexed before
         # if it is
-        #     append to end of line ", {document, documentposition, terms, frequency}"
+#     append to end of line ", {document, documentposition, terms, frequency}"
         # if not, add to end of file
         # format: "stem: {document, documentposition, terms, frequency}"
+        
         pass
