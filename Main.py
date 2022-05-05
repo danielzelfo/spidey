@@ -14,6 +14,9 @@ def run():
             print("current file: ", filepath)
             indexer.index(filepath)
             bar()
+        indexer.offload()
+    print("Merging database files...")
+    indexer.k_way_merge_files()
 
 if __name__ == "__main__":
     run()

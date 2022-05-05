@@ -1,0 +1,14 @@
+
+1_0:[x]{dsadasd}[y]{dsadasdas}[z]{1f15qwfaf}
+1_1:[wow1]
+2_0:[z]{1f15qwfaf}[y]{dsadasdas}[x]{dsadasd}
+3_0:[x]{dsadasd}[y]{dsadasdas}[z]{1f15qwfaf}
+4_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
+5_0:[z]{1f15qwfaf}[y]{dsadasdas}[x]{dsadasd}[z]{hmmm}[y]{hmmm}[x]{hmmm}
+7_0:[z]{1f15qwfaf}[y]{dsadasdas}[x]{dsadasd}[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
+7_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
+8_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
+9_0:[x]{dsadasd}[y]{dsadasdas}[z]{1f15qwfaf}[x]{hmmm}[y]{hmmm}[z]{hmmm}
+11_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
+9_1:[wow]
+7_2:[wow2]
