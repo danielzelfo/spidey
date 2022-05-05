@@ -1,19 +1,21 @@
 
 import os
 import shutil
+import glob
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-if os.path.isfile("./database.txt"):
-    os.unlink("./database.txt")
+for db_file in glob.glob("database_*.txt"):
+    if os.path.isfile(db_file):
+        os.unlink(db_file)
 
-shutil.copyfile("../../Indexer.py", "./Indexer.py")
-shutil.copyfile("../../HTMLParser.py", "./HTMLParser.py")
+shutil.copyfile("../../Indexer.py", "Indexer.py")
+shutil.copyfile("../../HTMLParser.py", "HTMLParser.py")
 
 
 from Indexer import Indexer
 
-indexer = Indexer()
+indexer = Indexer(3)
 indexer.write_to_disk("key0", "test1", "test1", "test1", "test1")
 indexer.write_to_disk("key0", "test2", "test2", "test2", "test2")
 
@@ -99,5 +101,5 @@ indexer.write_to_disk("key3", "4_test1", "4_test1", "4_test1", "4_test1")
 indexer.write_to_disk("key3", "4_test2", "4_test2", "4_test2", "4_test2")
 
 
-os.unlink("./Indexer.py")
-os.unlink("./HTMLParser.py")
+os.unlink("Indexer.py")
+os.unlink("HTMLParser.py")
