@@ -4,7 +4,7 @@ import shutil
 
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-if os.path.exists("./database.txt"):
+if os.path.isfile("./database.txt"):
     os.unlink("./database.txt")
 
 shutil.copyfile("../../Indexer.py", "./Indexer.py")

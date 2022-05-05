@@ -31,7 +31,7 @@ class HTMLParser:
         # if the number of tags is 0 then it is not html
 
         urlpath = urlparse(url).path
-        if (not "." in urlpath[-6:] or any( urlpath.endswith(x) for x in [".html",".xml",".xhtml",".htm",".php",".aspx",".asp",".jsp"])) and len(soup.findAll()) != 0:
+        if (not "." in urlpath[-6:] or any( urlpath.endswith(x) for x in [".html",".xml",".xhtml", ".phtml", ".htm",".php",".aspx",".asp",".jsp"])) and len(soup.findAll()) != 0:
             return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
         else:
             return str(soup)

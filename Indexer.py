@@ -15,7 +15,7 @@ class Indexer:
         pass
 
     def write_to_f(self, f, strr):
-        print(f"Writing: {strr}")
+        # print(f"Writing: {strr}")
         f.write(strr)
     
     # filepath ex: aiclub_ics_uci_edu/file.json
@@ -35,17 +35,8 @@ class Indexer:
         tokenFreq = self.htmlParser.computeWordFrequencies(tokens)
 
         for token, freq in tokenFreq.items():
-            #write_to_disk(token, docum ent,freq)
-            pass
-             
-
-            
-
-        # parse
-        # stem
-        # ...
-        # write to disk
-        pass
+            self.write_to_disk(token, url, 0, 0, freq)
+        
     
     def write_to_disk(self, stem, document, documentposition, terms, frequency):
         datawriting = json.dumps({
