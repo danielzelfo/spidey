@@ -9,10 +9,10 @@ directory = "page_data/data/DEV/"
 indexer = None
 
 def run():
-    error_out = open("error_log.txt", "a")
-    error_out.write("RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
+    run_log = open("run_log.txt", "a")
+    run_log.write("RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
 
-    indexer = Indexer(error_out=error_out)
+    indexer = Indexer(run_log=run_log)
     files = list(Path(directory).rglob('*.json'))
     with alive_bar(len(files), force_tty=True) as bar:
         for filepath in files:
@@ -24,8 +24,8 @@ def run():
     print("Merging database files...")
     indexer.k_way_merge_files()
     
-    error_out.write("RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
-    error_out.close()
+    run_log.write("RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
+    run_log.close()
 
 if __name__ == "__main__":
     run()
