@@ -49,7 +49,11 @@ class Indexer:
         
         if self.document_count % self.document_per_offload == 0:
             self.offload()
-    
+            
+    def save_urls(self):
+        with open("urls.txt", "w") as f:
+            for url, idx in self.urls.items():
+                f.write(f"{idx}:{url}\n")
     def offload(self):
         print(f"OFFLOADING {self.database_num}...")
         with open(f"database_{self.database_num}.txt", "w") as f:
