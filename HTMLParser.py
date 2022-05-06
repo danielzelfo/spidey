@@ -2,8 +2,8 @@ from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 from nltk.stem import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
-import re
 from urllib.parse import urlparse
+import bisect
 
 class HTMLParser:
     def __init__(self):
@@ -11,23 +11,35 @@ class HTMLParser:
         self.porterStemmer = PorterStemmer()
         # Initlize tokenizer from nltk
         self.tokenizer = RegexpTokenizer(r"[a-z0-9]+")
-        
+    
     # Separates string of text into individual tokens, paired with a list of term positions.
     # returns -> list(str, term pos(int))
     def tokenize(self, text):
         text = text.lower()
-        return [[text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize()]
+        return [[text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize(text)]
     
     # Converts list of token & token positions into a dictionary
     # returns dictionary 
-    def tokensAndPositionsToDict(self, tokensAndPositions):
-        thedict = {}
+    def tokensAndPositionsToStemDict(self, tokensAndPositions):
+        # combine tokens to make list of positions
+        tokendict = {}
         for token, position in tokensAndPositions:
-            if not token in thedict:
-                thedict[token] = [position]
+            if not token in tokendict:
+                tokendict[token] = [position]
             else:
-                thedict[token].append(position)
-        return thedict
+                tokendict[token].append(position)
+        
+        # stem the unique tokens and combine positions
+        stemdict = {}
+        for token, positions in tokendict.items():
+            stem = self.porterStemmer.stem(token)
+            if not stem in stemdict:
+                stemdict[stem] = positions
+            else:
+                for pos in positions: # ex: positon [1, 3] + [2, 4] = [1, 2, 3, 4]
+                    bisect.insort(stemdict[stem], pos) # (insert in order)
+
+        return stemdict
     
     # Extracts url content
     def extract_text(self, content, encoding, url):

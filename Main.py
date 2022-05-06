@@ -2,16 +2,22 @@ from Indexer import Indexer
 from pathlib import Path
 from alive_progress import alive_bar
 import datetime
+import glob
+import os
 import warnings
 warnings.filterwarnings("ignore")
 
 directory = "page_data/data/DEV/"
 
-#testDirectory = "testing/"
+# testDirectory = "testing/"
 
 indexer = None
 
 def run():
+    # delete database files from previous run
+    files = glob.glob('database_*.txt')
+    for file in files:
+        os.unlink(file)
     
     run_log = open("run_log.txt", "a")
     run_log.write("RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")

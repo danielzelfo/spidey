@@ -45,16 +45,16 @@ class Indexer:
                 self.run_log.write(f"Extract text error for {url}: {e}\n")
             return
         
-        # Get token & positions dictionary
-        tokenPositions = self.htmlParser.tokensAndPositionsToDict(self.htmlParser.tokenize(textContent))
+        # Get stems & positions dictionary
+        stemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(textContent))
         
         # Add new token value into current data
-        # Offload if number of token value exceeds threshold
-        for token, positions in tokenPositions.items():
-            if not token in self.current_data:
-                self.current_data[token] = []
+        # Offload if number of value exceeds threshold
+        for stem, positions in stemPositions.items():
+            if not stem in self.current_data:
+                self.current_data[stem] = []
                 
-            self.current_data[token].append([self.document_count, positions])
+            self.current_data[stem].append([self.document_count, positions])
             
             self.num_values += 1
             if self.num_values % self.entries_per_offload == 0:
