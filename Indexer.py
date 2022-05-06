@@ -19,6 +19,9 @@ class Indexer:
         self.num_values = 0
         
     # filepath ex: aiclub_ics_uci_edu/file.json
+    # Extracts and tokenizes text from given filepath
+    # Stores tokens into dictionary
+    # Offloads dictionary once token entires exceeds threshold
     def index(self, filepath):
         self.document_count += 1
         
@@ -54,12 +57,13 @@ class Indexer:
             if self.num_values % self.entries_per_offload == 0:
                 self.offload()
     
-
+    # Saves url hashtable into json file
     def save_urls(self):
         with open("urls.txt", "w") as f:
             for url, idx in self.urls.items():
                 f.write(f"{idx}:{url}\n")
     
+    # Opens/Create file for offloading tokens
     def offload(self):
         print(f"OFFLOADING {self.database_num}...")
         with open(f"database_{self.database_num}.txt", "w") as f:
@@ -69,6 +73,7 @@ class Indexer:
         self.current_data = {}
         self.database_num += 1
     
+    # writes tokens and entires into file
     def write_to_disk(self, file, token, entries):
         entries_parsed = f"{token}:"
         for entry in entries:
