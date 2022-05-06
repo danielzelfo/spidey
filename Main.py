@@ -15,8 +15,7 @@ indexer = None
 
 def run():
     # delete database files from previous run
-    files = glob.glob('database_*.txt')
-    for file in files:
+    for file in glob.glob('database_*.txt'):
         os.unlink(file)
     
     run_log = open("run_log.txt", "a")

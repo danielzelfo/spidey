@@ -3,7 +3,6 @@ from bs4.element import Comment
 from nltk.stem import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 from urllib.parse import urlparse
-import bisect
 
 class HTMLParser:
     def __init__(self):
@@ -36,8 +35,11 @@ class HTMLParser:
             if not stem in stemdict:
                 stemdict[stem] = positions
             else:
-                for pos in positions: # ex: positon [1, 3] + [2, 4] = [1, 2, 3, 4]
-                    bisect.insort(stemdict[stem], pos) # (insert in order)
+                stemdict[stem] += positions
+
+        # sort the positions
+        for stem in stemdict:
+            stemdict[stem].sort()
 
         return stemdict
     
