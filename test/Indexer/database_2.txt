@@ -1,7 +1,0 @@
-4_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
-5_0:[z]{hmmm}[y]{hmmm}[x]{hmmm}
-7_0:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
-7_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
-8_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}
-9_0:[x]{hmmm}[y]{hmmm}[z]{hmmm}
-11_2:[z]{hmmm}[y]{dsadasdas}[x]{hmmm}

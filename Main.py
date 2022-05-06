@@ -2,21 +2,31 @@ from Indexer import Indexer
 from pathlib import Path
 from alive_progress import alive_bar
 import datetime
+import glob
+import os
 import warnings
 warnings.filterwarnings("ignore")
 
 #Directory of files
 directory = "page_data/data/DEV/"
+
+# testDirectory = "testing/"
+
 indexer = None
 
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.
 def run():
+    # delete database files from previous run
+    for file in glob.glob('database_*.txt'):
+        os.unlink(file)
+    
     run_log = open("run_log.txt", "a")
     run_log.write("RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
 
     indexer = Indexer(run_log=run_log)
     files = list(Path(directory).rglob('*.json'))
+
     with alive_bar(len(files), force_tty=True) as bar:
         for filepath in files:
             # print("current file: ", filepath)
@@ -26,7 +36,7 @@ def run():
     
     print("Merging database files...")
     indexer.k_way_merge_files()
-    
+    indexer.save_urls()
     run_log.write("RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()
 
