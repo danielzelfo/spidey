@@ -3,23 +3,25 @@ from HTMLParser import HTMLParser
 
 class Indexer:
 
-    def __init__(self, documents_per_offload=2000, run_log=None):
+    def __init__(self, documents_per_offload=200000, run_log=None):
         self.htmlParser = HTMLParser()
 
         self.current_data = {}
 
-        self.document_per_offload = documents_per_offload
+        self.entries_per_offload = documents_per_offload
         self.document_count = 0
         self.database_num = 0
 
         self.urls = {}
 
         self.run_log = run_log
-    
+
+        self.num_values = 0
+        
     # filepath ex: aiclub_ics_uci_edu/file.json
     def index(self, filepath):
         self.document_count += 1
-
+        
         # extract data from file
         with open(filepath) as f:
             data = json.load(f)
@@ -39,21 +41,25 @@ class Indexer:
             if not self.run_log is None:
                 self.run_log.write(f"Extract text error for {url}: {e}\n")
             return
-        tokens = self.htmlParser.tokenize(textContent)
-        tokenFreq = self.htmlParser.computeWordFrequencies(tokens)
-
-        for i, (token, freq) in enumerate(tokenFreq.items()):
+            
+        tokenPositions = self.htmlParser.tokensAndPositionsToDict(self.htmlParser.tokenize(textContent))
+        
+        for token, positions in tokenPositions.items():
             if not token in self.current_data:
                 self.current_data[token] = []
-            self.current_data[token].append([self.document_count, 0, 0, freq])
-        
-        if self.document_count % self.document_per_offload == 0:
-            self.offload()
+                
+            self.current_data[token].append([self.document_count, positions])
             
+            self.num_values += 1
+            if self.num_values % self.entries_per_offload == 0:
+                self.offload()
+    
+
     def save_urls(self):
         with open("urls.txt", "w") as f:
             for url, idx in self.urls.items():
                 f.write(f"{idx}:{url}\n")
+    
     def offload(self):
         print(f"OFFLOADING {self.database_num}...")
         with open(f"database_{self.database_num}.txt", "w") as f:
@@ -73,7 +79,7 @@ class Indexer:
 
         file.write(entries_parsed)
         
-    
+    # Merges all database.txt files together into one big database.txt file
     def k_way_merge_files(self):
         outfile = open("database_merged.txt", "w")
         infiles = [open(f"database_{i}.txt", "r") for i in range(self.database_num)]

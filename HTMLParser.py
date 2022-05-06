@@ -1,29 +1,33 @@
 from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 from nltk.stem import PorterStemmer
+from nltk.tokenize import RegexpTokenizer
 import re
 from urllib.parse import urlparse
 
 class HTMLParser:
     def __init__(self):
-        self.token_pattern = "[a-zA-Z0-9]+"
+        # Initialize Porter Stemmer
         self.porterStemmer = PorterStemmer()
-        pass
-
+        # Initlize tokenizer from nltk
+        self.tokenizer = RegexpTokenizer(r"[a-z0-9]+")
+        
+    # Separates string of text into individual tokens, paired with a list of term positions.
+    # returns -> list(str, term pos(int))
     def tokenize(self, text):
         text = text.lower()
-        lst = [self.porterStemmer.stem(token) for token in re.findall(self.token_pattern, text)]
-        return lst
+        return [[text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize()]
     
-    def computeWordFrequencies(self, alist):
-        adict = {}
-        for stem in alist:
-            if not stem in adict:
-                adict[stem] = 1
+    
+    def tokensAndPositionsToDict(self, tokensAndPositions):
+        thedict = {}
+        for token, position in tokensAndPositions:
+            if not token in thedict:
+                thedict[token] = [position]
             else:
-                adict[stem] += 1
-        return adict
-        
+                thedict[token].append(position)
+        return thedict
+            
     def extract_text(self, content, encoding, url):
         soup = BS(content, "html.parser", from_encoding=encoding)
         # if url path ends with .html|.xml|.xhtml|.htm|.php|.aspx|.asp|.jsp

@@ -3,3 +3,4 @@ env/
 /database_*.txt
 /temp_file.txt
 /run_log.txt
+/urls.txt
