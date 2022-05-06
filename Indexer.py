@@ -44,9 +44,12 @@ class Indexer:
             if not self.run_log is None:
                 self.run_log.write(f"Extract text error for {url}: {e}\n")
             return
-            
+        
+        # Get token & positions dictionary
         tokenPositions = self.htmlParser.tokensAndPositionsToDict(self.htmlParser.tokenize(textContent))
         
+        # Add new token value into current data
+        # Offload if number of token value exceeds threshold
         for token, positions in tokenPositions.items():
             if not token in self.current_data:
                 self.current_data[token] = []
@@ -73,7 +76,7 @@ class Indexer:
         self.current_data = {}
         self.database_num += 1
     
-    # writes tokens and entires into file
+    # writes tokens and entries into file
     def write_to_disk(self, file, token, entries):
         entries_parsed = f"{token}:"
         for entry in entries:
