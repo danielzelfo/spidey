@@ -15,7 +15,7 @@ class HTMLParser:
     # returns -> list(str, term pos(int))
     def tokenize(self, text):
         text = text.lower()
-        return [[text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize(text)]
+        return ([text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize(text))
     
     # Converts list of token & token positions into a dictionary
     # returns dictionary 

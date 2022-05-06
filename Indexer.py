@@ -3,12 +3,12 @@ from HTMLParser import HTMLParser
 
 class Indexer:
 
-    def __init__(self, documents_per_offload=200000, run_log=None):
+    def __init__(self, entries_per_offload=200000, run_log=None):
         self.htmlParser = HTMLParser()
 
         self.current_data = {}
 
-        self.entries_per_offload = documents_per_offload
+        self.entries_per_offload = entries_per_offload
         self.document_count = 0
         self.database_num = 0
 
@@ -33,10 +33,8 @@ class Indexer:
             url = data["url"]
     
         self.urls[url] = self.document_count
-
-        # process data
-        # print(f"url {self.document_count}:", url)
         
+        # safely extract text
         try:
             textContent = self.htmlParser.extract_text(content, encoding, url)
         except Exception as e:
@@ -57,8 +55,9 @@ class Indexer:
             self.current_data[stem].append([self.document_count, positions])
             
             self.num_values += 1
-            if self.num_values % self.entries_per_offload == 0:
+            if self.num_values >= self.entries_per_offload:
                 self.offload()
+                self.num_values = 0
     
     # Saves url hashtable into json file
     def save_urls(self):
@@ -67,6 +66,7 @@ class Indexer:
                 f.write(f"{idx}:{url}\n")
     
     # Opens/Create file for offloading tokens
+    # write everything in current_data / clear current_data
     def offload(self):
         print(f"OFFLOADING {self.database_num}...")
         with open(f"database_{self.database_num}.txt", "w") as f:
@@ -76,40 +76,52 @@ class Indexer:
         self.current_data = {}
         self.database_num += 1
     
-    # writes tokens and entries into file
+    # writes token and entries into file
     def write_to_disk(self, file, token, entries):
-        entries_parsed = f"{token}:"
+        file.write(f"{token}:")
         for entry in entries:
             entrystr = json.dumps(entry)
-            entries_parsed += f"[{len(entrystr)}]{entrystr}"
+            file.write(f"[{len(entrystr)}]{entrystr}")
         
-        entries_parsed += "\n"
-
-        file.write(entries_parsed)
+        file.write("\n")
         
     # Merges all database.txt files together into one big database.txt file
     def k_way_merge_files(self):
+        # open the merged database file
         outfile = open("database_merged.txt", "w")
-        infiles = [open(f"database_{i}.txt", "r") for i in range(self.database_num)]
+        # open the k database files
+        infiles = [open(f"database_{k}.txt", "r") for k in range(self.database_num)]
+
+        # read first line of all k database files
         lines = [x for x in [file.readline().strip() for file in infiles] if x]
+
+        # stems are before the colon / lines are everything after the stem
         stems = [line.split(":")[0] for line in lines]
         lines = [line[len(stem)+1:] for line, stem in zip(lines, stems)]
 
         current_stem = None
         while len(lines) > 0:
+            # get minimum stem
             min_idx = stems.index(min(stems))
+            # if the minimum stem is not that same as the last one (or the first one) write it
             if current_stem is None or current_stem != stems[min_idx]:
                 current_stem = stems[min_idx]
                 outfile.write(f"\n{current_stem}:")
             
+            # write the line
             outfile.write(lines[min_idx])
             
+            # read next line of file with minimum line
             lines[min_idx] = infiles[min_idx].readline().strip()
+
+            # delete the file / line if EOF is reached
             if not lines[min_idx]:
                 del lines[min_idx]
                 del stems[min_idx]
                 infiles[min_idx].close()
                 del infiles[min_idx]
+            
+            # separate stem and line
             else:
                 stems[min_idx] = lines[min_idx].split(":")[0]
                 lines[min_idx] = lines[min_idx][len(stems[min_idx])+1:]
