@@ -18,7 +18,8 @@ class HTMLParser:
         text = text.lower()
         return [[text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize()]
     
-    
+    # Converts list of token & token positions into a dictionary
+    # returns dictionary 
     def tokensAndPositionsToDict(self, tokensAndPositions):
         thedict = {}
         for token, position in tokensAndPositions:
@@ -27,7 +28,8 @@ class HTMLParser:
             else:
                 thedict[token].append(position)
         return thedict
-            
+    
+    # Extracts url content
     def extract_text(self, content, encoding, url):
         soup = BS(content, "html.parser", from_encoding=encoding)
         # if url path ends with .html|.xml|.xhtml|.htm|.php|.aspx|.asp|.jsp
