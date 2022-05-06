@@ -5,9 +5,12 @@ import datetime
 import warnings
 warnings.filterwarnings("ignore")
 
+#Directory of files
 directory = "page_data/data/DEV/"
 indexer = None
 
+# Main Program
+# Initalizes Indexer, reads and offloads data, merges data into single file when finished.
 def run():
     run_log = open("run_log.txt", "a")
     run_log.write("RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
