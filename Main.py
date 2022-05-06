@@ -10,10 +10,6 @@ warnings.filterwarnings("ignore")
 #Directory of files
 directory = "page_data/data/DEV/"
 
-# testDirectory = "testing/"
-
-indexer = None
-
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.
 def run():
@@ -36,7 +32,10 @@ def run():
     
     print("Merging database files...")
     indexer.k_way_merge_files()
+
+    print("Saving url ids")
     indexer.save_urls()
+
     run_log.write("RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()
 

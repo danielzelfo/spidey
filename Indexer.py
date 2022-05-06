@@ -4,18 +4,16 @@ from HTMLParser import HTMLParser
 class Indexer:
 
     def __init__(self, entries_per_offload=200000, run_log=None):
+        self.entries_per_offload = entries_per_offload
+        self.run_log = run_log
+
         self.htmlParser = HTMLParser()
 
         self.current_data = {}
-
-        self.entries_per_offload = entries_per_offload
-        self.document_count = 0
-        self.database_num = 0
-
         self.urls = {}
 
-        self.run_log = run_log
-
+        self.document_count = 0
+        self.database_num = 0
         self.num_values = 0
         
     # filepath ex: aiclub_ics_uci_edu/file.json
