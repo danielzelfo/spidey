@@ -21,16 +21,12 @@ class Indexer:
     # Stores tokens into dictionary
     # Offloads dictionary once token entires exceeds threshold
     def index(self, filepath):
-        self.document_count += 1
-        
         # extract data from file
         with open(filepath) as f:
             data = json.load(f)
             content = data["content"]
             encoding = data["encoding"]
             url = data["url"]
-    
-        self.urls[url] = self.document_count
         
         # safely extract text
         try:
@@ -40,6 +36,9 @@ class Indexer:
             if not self.run_log is None:
                 self.run_log.write(f"Extract text error for {url}: {e}\n")
             return
+        
+        self.document_count += 1
+        self.urls[url] = self.document_count
         
         # Get stems & positions dictionary
         stemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(textContent))
