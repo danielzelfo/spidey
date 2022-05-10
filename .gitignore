@@ -1,6 +1,7 @@
 __pycache__/
 env/
-/database_*.txt
+/index.txt
+/index_*.txt
 /temp_file.txt
 /run_log.txt
 /urls.txt

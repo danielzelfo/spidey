@@ -13,7 +13,7 @@ class Indexer:
         self.urls = {}
 
         self.document_count = 0
-        self.database_num = 0
+        self.index_num = 0
         self.num_values = 0
         
     # filepath ex: aiclub_ics_uci_edu/file.json
@@ -65,13 +65,13 @@ class Indexer:
     # Opens/Create file for offloading tokens
     # write everything in current_data / clear current_data
     def offload(self):
-        print(f"OFFLOADING {self.database_num}...")
-        with open(f"database_{self.database_num}.txt", "w") as f:
+        print(f"OFFLOADING {self.index_num}...")
+        with open(f"index_{self.index_num}.txt", "w") as f:
             for token, entries in sorted(self.current_data.items(), key=lambda x: x[0]):
                 self.write_to_disk(f, token, entries)
         
         self.current_data = {}
-        self.database_num += 1
+        self.index_num += 1
     
     # writes token and entries into file
     def write_to_disk(self, file, token, entries):
@@ -82,14 +82,14 @@ class Indexer:
         
         file.write("\n")
         
-    # Merges all database.txt files together into one big database.txt file
+    # Merges all index_*.txt files together into one big index.txt file
     def k_way_merge_files(self):
-        # open the merged database file
-        outfile = open("database_merged.txt", "w")
-        # open the k database files
-        infiles = [open(f"database_{k}.txt", "r") for k in range(self.database_num)]
+        # open the merged index file
+        outfile = open("index.txt", "w")
+        # open the k index files
+        infiles = [open(f"index_{k}.txt", "r") for k in range(self.index_num)]
 
-        # read first line of all k database files
+        # read first line of all k index files
         lines = [x for x in [file.readline().strip() for file in infiles] if x]
 
         # stems are before the colon / lines are everything after the stem
