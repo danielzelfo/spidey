@@ -6,6 +6,7 @@ body {
 
 #app {
     display: flex;
+    flex-direction: column;
     position: absolute;
     left: 50%;
     top: 50%;
@@ -14,6 +15,7 @@ body {
     background-color: rgba(16, 18, 27, 0.4);
     border: 1px solid rgba(16, 18, 27, 0.4);
     border-radius: 14px;
+    height: 85%;
 }
 
 .header {
@@ -103,4 +105,33 @@ body {
 
 .results {
     min-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 20px;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.search-result {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    background-color: rgba(255,255,255,0.75);
+    border-radius: 6px;
+}
+
+.search-result > div {
+    display: block;
+    overflow:hidden;
+}
+
+.search-result > div:nth-child(1) a {
+    font-weight: bold;
+}
+.search-result > div:nth-child(1) a:hover {
+    text-decoration: underline;
+}
+
+.search-result a {
+    text-decoration: none;
+    color: black;
 }
