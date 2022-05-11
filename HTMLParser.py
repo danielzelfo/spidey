@@ -57,11 +57,11 @@ class HTMLParser:
         if soup.find('html') or (not "." in urlpath[-6:] or any( urlpath.endswith(x) for x in [".html",".xml",".xhtml", ".phtml", ".shtml", ".htm",".php",".aspx",".asp",".jsp"])) and len(soup.findAll()) != 0:
             title = soup.title
             if title is None or title.string is None:
-                title = os.path.split(urlparse(url).path)[-1]
+                title = os.path.split(urlparse(url).path)[-1].strip()
             else:
-                title = title.string.replace("\\u", "")
+                title = title.string.replace("\\u", "").strip().split("\n")[0]
             textcontent = u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
             return title, textcontent
         else:
-            title = os.path.split(urlparse(url).path)[-1]
+            title = os.path.split(urlparse(url).path)[-1].strip()
             return title, content
