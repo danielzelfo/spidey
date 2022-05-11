@@ -9,7 +9,6 @@ if __name__ == "__main__":
         if request == "Done":
             break
     
-        print(query.ANDboolean(query.docInfoRetrieve(request)))
-
+        query.printQueryResults(request)
     
     

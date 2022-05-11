@@ -7,7 +7,13 @@ class Query:
         self.indexStemPositions = { }
         self.indexFile = open("index.txt", "r")
         self.porterStemmer = PorterStemmer()
-        
+        self.urlNums = {}
+        with open("urls.txt", "r") as f:
+            for line in f:
+                line = line.strip()
+                docnum = line.split(":")[0]
+                self.urlNums[int(docnum)] = line[len(docnum)+1:]
+
         self.initializeIndexStemPositions()
 
         
@@ -21,9 +27,7 @@ class Query:
             currentPos += len(line)
 
     def stemDocInfoRetrieve(self, stem):
-        print(stem)
         documentsInfo = []
-
         
         if not stem in self.indexStemPositions:
             return documentsInfo
@@ -47,7 +51,6 @@ class Query:
             jsonlen = int(jsonlenstr)
             documentsInfo.append(json.loads(documents[curidx + len(jsonlenstr) + 2 : curidx + len(jsonlenstr) + 2 + jsonlen]))
             curidx += len(jsonlenstr) + 2 + jsonlen
-            # print(documentsInfo[-1])
         
         return documentsInfo
     
@@ -73,21 +76,8 @@ class Query:
     # def ranking(self, documentSet):
         
 
-
-    # def printUrls(self, docNums):
-    #     urlNums = open("urls.txt", "r")
-    #     result = ""
-
-    #     for index, docNum in enumerate(docNums):
-    #         if index == 5:
-    #             break
-    #         if docNum in urlNums:
-    #             url = urlNums[docNum]
-    #             result += url + " "
+    def printDocumentsInfo(self, docNums):
+        print("\n".join(self.urlNums[docNum] for docNum in docNums))
     
-    #     print("First few Urls: ", result)    
-    
-
-
-        
-    
+    def printQueryResults(self, text):
+        self.printDocumentsInfo(list(self.ANDboolean(self.docInfoRetrieve(text)))[:5])
