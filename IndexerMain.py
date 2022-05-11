@@ -5,10 +5,11 @@ import datetime
 import glob
 import os
 import warnings
+import json
 warnings.filterwarnings("ignore")
 
 #Directory of files
-directory = "page_data/data/DEV/"
+directory = "page_data/filtered_data/"
 
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.
@@ -18,16 +19,20 @@ def run():
         os.unlink("index.txt")
     
     run_log = open("run_log.txt", "a")
-    run_log.write("RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
+    run_log.write("INDEX RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
 
     indexer = Indexer(run_log=run_log)
-    files = list(Path(directory).rglob('*.json'))
 
-    with alive_bar(len(files), force_tty=True) as bar:
-        for filepath in files:
-            # print("current file: ", filepath)
-            indexer.index(filepath)
-            bar()
+    with open("num_documents.txt", "r") as f:
+        num_documents = int(f.read().strip())
+    
+    with alive_bar(num_documents, force_tty=True) as bar:
+        with open("docInfo.txt", "r") as files:
+            for fileInfo in files:
+                fileInfoArr = json.loads(fileInfo)
+                filepath = os.path.join(directory, fileInfoArr[2])
+                indexer.index(filepath)
+                bar()
         indexer.offload()
     
     print("Merging index files...")
@@ -36,10 +41,7 @@ def run():
     for file in glob.glob('index_*.txt'):
         os.unlink(file)
 
-    print("Saving url ids")
-    indexer.save_urls()
-
-    run_log.write("RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
+    run_log.write("INDEX RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()
 
 if __name__ == "__main__":

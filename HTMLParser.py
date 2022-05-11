@@ -3,6 +3,7 @@ from bs4.element import Comment
 from nltk.stem import PorterStemmer
 from nltk.tokenize import RegexpTokenizer
 from urllib.parse import urlparse
+import os
 
 class HTMLParser:
     def __init__(self):
@@ -44,7 +45,7 @@ class HTMLParser:
         return stemdict
     
     # Extracts url content
-    def extract_text(self, content, encoding, url):
+    def extract_info(self, content, encoding, url):
         soup = BS(content, "html.parser", from_encoding=encoding)
         # if url path ends with .html|.xml|.xhtml|.htm|.php|.aspx|.asp|.jsp
         # or does not have an extension then it is html/xml
@@ -54,6 +55,13 @@ class HTMLParser:
         if urlpath.endswith("/") or urlpath.endswith("~"):
             urlpath = urlpath[:-1]
         if soup.find('html') or (not "." in urlpath[-6:] or any( urlpath.endswith(x) for x in [".html",".xml",".xhtml", ".phtml", ".shtml", ".htm",".php",".aspx",".asp",".jsp"])) and len(soup.findAll()) != 0:
-            return u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
+            title = soup.title
+            if title is None or title.string is None:
+                title = os.path.split(urlparse(url).path)[-1]
+            else:
+                title = title.string.replace("\\u", "")
+            textcontent = u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
+            return title, textcontent
         else:
-            return content
+            title = os.path.split(urlparse(url).path)[-1]
+            return title, content

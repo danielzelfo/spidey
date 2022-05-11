@@ -1,4 +1,3 @@
-import sys
 from nltk.stem import PorterStemmer
 import json
 
@@ -7,12 +6,11 @@ class Query:
         self.indexStemPositions = { }
         self.indexFile = open("index.txt", "r")
         self.porterStemmer = PorterStemmer()
-        self.urlNums = {}
-        with open("urls.txt", "r") as f:
+        self.docInfoLst = []
+        with open("docInfo.txt", "r") as f:
             for line in f:
-                line = line.strip()
-                docnum = line.split(":")[0]
-                self.urlNums[int(docnum)] = line[len(docnum)+1:]
+                docInfo = json.loads(line.strip())
+                self.docInfoLst.append(docInfo[:2])#only save title and url
 
         self.initializeIndexStemPositions()
 
@@ -77,7 +75,7 @@ class Query:
         
 
     def printDocumentsInfo(self, docNums):
-        print("\n".join(self.urlNums[docNum] for docNum in docNums))
+        print("\n".join(self.docInfoLst[docNum][0]+"\n\t"+self.docInfoLst[docNum][1] for docNum in docNums))
     
     def printQueryResults(self, text):
         self.printDocumentsInfo(list(self.ANDboolean(self.docInfoRetrieve(text)))[:5])

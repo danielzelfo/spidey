@@ -10,35 +10,18 @@ class Indexer:
         self.htmlParser = HTMLParser()
 
         self.current_data = {}
-        self.urls = {}
 
         self.document_count = 0
         self.index_num = 0
         self.num_values = 0
         
-    # filepath ex: aiclub_ics_uci_edu/file.json
-    # Extracts and tokenizes text from given filepath
+    # filepath ex: direc/file.json
     # Stores tokens into dictionary
     # Offloads dictionary once token entires exceeds threshold
     def index(self, filepath):
         # extract data from file
         with open(filepath) as f:
-            data = json.load(f)
-            content = data["content"]
-            encoding = data["encoding"]
-            url = data["url"]
-        
-        # safely extract text
-        try:
-            textContent = self.htmlParser.extract_text(content, encoding, url)
-        except Exception as e:
-            print(f"Extract text error for {url}: {e}")
-            if not self.run_log is None:
-                self.run_log.write(f"Extract text error for {url}: {e}\n")
-            return
-        
-        self.document_count += 1
-        self.urls[url] = self.document_count
+            textContent = f.read()
         
         # Get stems & positions dictionary
         stemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(textContent))
@@ -55,12 +38,8 @@ class Indexer:
             if self.num_values >= self.entries_per_offload:
                 self.offload()
                 self.num_values = 0
-    
-    # Saves url hashtable into json file
-    def save_urls(self):
-        with open("urls.txt", "w") as f:
-            for url, idx in self.urls.items():
-                f.write(f"{idx}:{url}\n")
+        
+        self.document_count += 1
     
     # Opens/Create file for offloading tokens
     # write everything in current_data / clear current_data
