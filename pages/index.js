@@ -1,5 +1,6 @@
 import Head from 'next/head'
 import { useState, useMemo } from 'react';
+import {search} from "backend/search";
 
 export default function Home() {
   const [isFocused, setIsFocused] = useState(false);
@@ -12,13 +13,16 @@ export default function Home() {
     onBlur: () => setIsFocused(false),
   }), []);
 
-  const [results, setResults] = useState([
-    {"title": "Department of Statistics - Donald Bren School of Information & Computer Sciences – Department of Statistics - Donald Bren School of Information & Computer Sciences", "url": "https://www.stat.uci.edu"},
-    {"title": "Informatics @ the University of California, Irvine", "url": "https://www.informatics.uci.edu"},
-    {"title": "Donald Bren School of Information and Computer Sciences @ University of California, Irvine", "url": "https://www.ics.uci.edu"},
-    {"title": "Department of Computer Science - Donald Bren School of Information & Computer Sciences – Department of Computer Science - Donald Bren School of Information & Computer Sciences", "url": "https://www.cs.uci.edu"},
-    {"title": "Home | UCI Mathematics", "url": "https://www.math.uci.edu"}
-  ]);
+  const keyPressHandler = (e) => {
+    if (e.key === "Enter") {
+      search(e.target.value)
+        .then(response => setResults(response.data))
+        .catch(error => {console.log("error"); console.log(JSON.stringify(error))}
+      );    
+    }
+  }
+
+  const [results, setResults] = useState([]);
     
   return (
     <div className="container">
@@ -35,7 +39,7 @@ export default function Home() {
               <h1 className="title">Spidey Search</h1>
             </div>
             <div className="searchBarContainer">
-              <input className='searchBar' {...eventHandlers} placeholder="Search" />
+              <input className='searchBar' placeholder="Search" {...eventHandlers} onKeyPress={keyPressHandler} />
             </div>
           </div>
           <div className="results">
