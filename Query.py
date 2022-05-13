@@ -68,7 +68,7 @@ class Query:
 
         documentswithAll = set([docInfo[0] for docInfo in documentInfoDictItems[0][1]])
         for stemDocInfo in documentInfoDictItems[1:]:
-            documentswithAll.intersection([docInfoItem[0] for docInfoItem in stemDocInfo[1]])
+            documentswithAll = documentswithAll.intersection(docInfoItem[0] for docInfoItem in stemDocInfo[1])
         return documentswithAll
 
     # def ranking(self, documentSet):
