@@ -15,10 +15,11 @@ export default function Home() {
 
   const keyPressHandler = (e) => {
     if (e.key === "Enter") {
-      search(e.target.value)
-        .then(response => setResults(response.data))
-        .catch(error => {console.log("error"); console.log(JSON.stringify(error))}
-      );    
+      e.target.value !== "" &&
+        search(e.target.value)
+          .then(response => setResults(response.data))
+          .catch(error => {console.log("error"); console.log(JSON.stringify(error))}
+        );
     }
   }
 
