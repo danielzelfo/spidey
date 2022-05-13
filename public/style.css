@@ -1,4 +1,5 @@
 body {
+    background-color: #202124;
     background-image: url(https://static.pexels.com/photos/1227/night-dark-blur-blurred.jpg);
     background-size: cover;
     background-position: center;
@@ -33,6 +34,8 @@ a:visited {
 
 #app.dark {
     background-color: #202124;
+    border: none;
+    border-radius: 0;
     width: 100%;
     height: 100%;
     transition: .4s;
@@ -146,7 +149,12 @@ a:visited {
     margin-top: 20px;
     padding: 20px;
     overflow-y: auto;
-    padding-left: 100px;
+    
+}
+@media only screen and (min-width: 737px) {
+    .results {
+        padding-left: 100px;
+    }
 }
 
 .search-result > div {
