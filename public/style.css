@@ -19,18 +19,19 @@ a:visited {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-}
 
-.glass {
     background-color: rgba(16, 18, 27, 0.4);
     border: 1px solid rgba(16, 18, 27, 0.4);
     border-radius: 14px;
     width: 85%;
     height: 85%;
+}
+
+#app.glass {
     transition: .4s;
 }
 
-.dark {
+#app.dark {
     background-color: #202124;
     width: 100%;
     height: 100%;
@@ -109,14 +110,15 @@ a:visited {
     background-repeat: no-repeat;
     background-position: 16px 48%;
     color: #f9fafb;
+
+    background-color: #14162b;
 }
 
-.glass .searchBar {
-    background-color: #14162b;
+#app.glass .searchBar {
     transition: 0.4s;
 }
 
-.dark .searchBar {
+#app.dark .searchBar {
     background-color: #303134;
     transition: 0.4s;
 }

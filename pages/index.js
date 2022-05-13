@@ -32,7 +32,7 @@ export default function Home() {
 
   const [results, setResults] = useState([]);
 
-  const [appStyle, setAppStyle] = useState("glass");
+  const [appStyle, setAppStyle] = useState("");
     
   return (
     <div className="container">
