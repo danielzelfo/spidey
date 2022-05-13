@@ -1,5 +1,10 @@
 from nltk.stem import PorterStemmer
+from HTMLParser import HTMLParser
+from nltk.tokenize import RegexpTokenizer
 import json
+import datetime
+import contractions
+import re
 
 class Query:
     def __init__(self):
@@ -7,13 +12,27 @@ class Query:
         self.indexFile = open("index.txt", "r")
         self.porterStemmer = PorterStemmer()
         self.docInfoLst = []
+        self.htmlParser = HTMLParser()
         with open("docInfo.txt", "r") as f:
             for line in f:
                 docInfo = json.loads(line.strip())
                 self.docInfoLst.append(docInfo[:2])#only save title and url
+        
+        self.minlength = 3
+        self.stopwords = {'about', 'were', 'having', 'more', 'same', 'for', 'your', 'very', 'up', 'out', 'has', 'again', 'some', 'through', 'all', 'not', 'we', 'during', 'be', 'between', 'until', 'whom', 'theirs', 'few', 'most', 'where', 'such', 'he', 'what', 'those', 'no', 'an', 'let', 'it', 'too', 'you', 'have', 'ours', 'her', 'will', 'who', 'than', 'further', 'after', 'are', 'if', 'was', 'doing', 'our', 'been', 'then', 'into', 'ought', 'the', 'over', 'us', 'while', 'own', 'being', 'his', 'these', 'cannot', 'down', 'in', 'below', 'yourselves', 'their', 'or', 'so', 'him', 'this', 'but', 'they', 'on', 'both', 'once', 'itself', 'them', 'only', 'by', 'there', 'is', 'herself', 'how', 'she', 'did', 'to', 'a', 'themselves', 'which', 'off', 'because', 'against', 'yourself', 'with', 'at', 'its', 'before', 'does', 'that', 'had', 'me', 'i', 'other', 'each', 'hers', 'and', 'as', 'nor', 'under', 'himself', 'am', 'any', 'would', 'from', 'of', 'should', 'must', 'my', 'myself', 'why', 'above', 'when', 'shall', 'could', 'here', 'yours', 'do', 'ourselves'}
 
         self.initializeIndexStemPositions()
 
+    
+    def tokenizeStop(self, text):
+        self.htmlParser.tokenizer = RegexpTokenizer(r"[a-z0-9']+")
+        tokens = [x[0] for x in self.htmlParser.tokenize(text.strip())]
+        newtokens = []
+        for token in tokens:
+            for t in re.split(r"\s|'", contractions.fix(token)):
+                if not t in self.stopwords and len(t) >= self.minlength:
+                    newtokens.append(t)
+        return newtokens
         
     def initializeIndexStemPositions(self):
         # run through index.txt
@@ -53,7 +72,9 @@ class Query:
         return documentsInfo
     
     def docInfoRetrieve(self, text):
-        splitText = text.strip().split(" ")
+        # tokenize
+        # remove stop words
+        splitText = self.tokenizeStop(text)
 
         documentInfoDict = {}
         
@@ -64,11 +85,14 @@ class Query:
         return documentInfoDict
             
     def ANDboolean(self, documentInfoDict):
+        if len(documentInfoDict) == 0:
+            return set()
         documentInfoDictItems = list(documentInfoDict.items())
 
         documentswithAll = set([docInfo[0] for docInfo in documentInfoDictItems[0][1]])
         for stemDocInfo in documentInfoDictItems[1:]:
             documentswithAll = documentswithAll.intersection(docInfoItem[0] for docInfoItem in stemDocInfo[1])
+        
         return documentswithAll
 
     # def ranking(self, documentSet):
