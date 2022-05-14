@@ -36,3 +36,9 @@ important tags: ex <b></b>
     ```
 
     2. save spans of important text in extracted text?
+
+wider search (for not enough results)
+    SET UNION instead of INTERSECTION?
+
+    search stop words?
+        needs sorted index
