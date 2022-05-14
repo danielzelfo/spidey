@@ -4,6 +4,35 @@ List of extensions in page_data:
 ```
 
 
-
 long page:
 page_data/data/DEV/mondego_ics_uci_edu/95c3f9dc662f1fe7ed6982cf896e810756fda1098742bf09659f05a33d9c790a.json
+
+todo:
+
+Filter:
+    replace (\s+, " ")
+
+search title (stored in docInfo.txt) [higher importance]
+
+Final project notes:
+Ranking (during indexing and query) 
+    - tf * idf score (term freq, inverse doc frequency)
+    - index by score, take top 10 of the tokens, do intersection, and rank again
+
+
+Bigrams
+Page Similarity
+
+expand contractions while tokenizing for index
+
+
+
+important tags: ex <b></b>
+    options:
+    1. separate extract text to seperate directories?
+    ```
+        important/{...}.json
+        rest/{...}.json
+    ```
+
+    2. save spans of important text in extracted text?
