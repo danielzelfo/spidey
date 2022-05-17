@@ -2,6 +2,7 @@ import json
 import os
 from HTMLParser import HTMLParser
 from alive_progress import alive_bar
+from urllib.parse import urldefrag
 
 class Filter:
     def __init__(self, files, textContentSavePath, run_log):
@@ -10,6 +11,7 @@ class Filter:
         self.run_log = run_log
         self.htmlParser = HTMLParser()
         self.countSuccessFul = 0
+        self.encountered_urls = set()
 
     def filter_file(self, filepath, docInfoFile):
         with open(filepath) as f:
@@ -17,6 +19,12 @@ class Filter:
             content = data["content"]
             encoding = data["encoding"]
             url = data["url"]
+        
+        url = urldefrag(url)[0]
+        if url in self.encountered_urls:
+            return
+        
+        self.encountered_urls.add(url)
 
         # safely extract text
         try:
@@ -36,7 +44,6 @@ class Filter:
             print(f"Extract text error for {url}: {e}")
             if not self.run_log is None:
                 self.run_log.write(f"Extract text error for {url}: {e}\n")
-            return
     
     def run_filter(self):
         with open("docInfo.txt", "w") as docInfoFile:

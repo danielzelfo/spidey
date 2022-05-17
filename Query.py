@@ -95,7 +95,12 @@ class Query:
         
         return documentswithAll
 
-    # def ranking(self, documentSet):
+
+    def rankDocumentByFrequency(self, documentSet):
+        
+        for document in documentSet:
+            pass
+        pass
         
 
     def printDocumentsInfo(self, docNums):
