@@ -30,8 +30,9 @@ def run():
         with open("docInfo.txt", "r") as files:
             for fileInfo in files:
                 fileInfoArr = json.loads(fileInfo)
+                title = fileInfoArr[0]
                 filepath = os.path.join(directory, fileInfoArr[2])
-                indexer.index(filepath)
+                indexer.index(filepath, title)
                 bar()
         indexer.offload()
     

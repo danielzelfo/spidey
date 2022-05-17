@@ -18,11 +18,21 @@ class Indexer:
     # filepath ex: direc/file.json
     # Stores tokens into dictionary
     # Offloads dictionary once token entires exceeds threshold
-    def index(self, filepath):
+    def index(self, filepath, title):
         # extract data from file
         with open(filepath) as f:
             textContent = f.read()
         
+        #title stems and positions dictionary
+        titleStemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(title))
+
+        for stem, positions in titleStemPositions.items():
+            if not stem in self.current_data:
+                self.current_data[stem] = []
+            
+            # negative position to denote a title
+            self.current_data[stem].append([self.document_count, [-1*pos for pos in positions]])
+
         # Get stems & positions dictionary
         stemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(textContent))
         
