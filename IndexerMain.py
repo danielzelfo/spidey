@@ -38,6 +38,10 @@ def run():
     
     print("Merging index files...")
     indexer.k_way_merge_files()
+
+    print("Sorting index file...")
+    indexer.sortIndex()
+
     # delete partial index files
     for file in glob.glob('index_*.txt'):
         os.unlink(file)

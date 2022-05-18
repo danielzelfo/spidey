@@ -1,9 +1,10 @@
 import json
 from HTMLParser import HTMLParser
+import os
 
 class Indexer:
 
-    def __init__(self, entries_per_offload=200000, run_log=None):
+    def __init__(self, entries_per_offload=1000000, run_log=None):
         self.entries_per_offload = entries_per_offload
         self.run_log = run_log
 
@@ -31,7 +32,7 @@ class Indexer:
                 self.current_data[stem] = []
             
             # negative position to denote a title
-            self.current_data[stem].append([self.document_count, [-1*pos for pos in positions]])
+            self.current_data[stem].append([self.document_count, [-1*(pos+1) for pos in positions]])
 
         # Get stems & positions dictionary
         stemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(textContent))
@@ -113,3 +114,43 @@ class Indexer:
                 lines[min_idx] = lines[min_idx][len(stems[min_idx])+1:]
         
         outfile.close()
+    
+    def parseLine(self, line):
+        documentsInfo = []
+
+        line = line.strip()
+        stem = line.split(":")[0]
+        line = line[len(stem)+1:]
+
+        # Read [length to read]{doc1 json}[length to read]{doc2 json}
+        curidx = 0
+        while curidx < len(line):
+            jsonlenstr = ""
+            for char in line[curidx+1:]:
+                if char == "]":
+                    break              
+                jsonlenstr += char
+            jsonlen = int(jsonlenstr)
+            documentsInfo.append(json.loads(line[curidx + len(jsonlenstr) + 2 : curidx + len(jsonlenstr) + 2 + jsonlen]))
+            curidx += len(jsonlenstr) + 2 + jsonlen
+
+        return stem, documentsInfo
+
+    def positionsToRank(self, positions):
+        rank = 0
+        for pos in positions:
+            if pos < 0: # title has 2 times more importance
+                rank += 2
+            else:
+                rank += 1
+        return rank
+
+    def sortIndex(self):
+        os.rename("index.txt", "index.old.txt")
+        with open("index.old.txt", "r") as infile:
+            with open("index.txt", "w") as outfile:
+                for line in infile:
+                    stem, docInfo = self.parseLine(line)
+                    docInfo.sort(key=lambda x: self.positionsToRank(x[1]), reverse=True)
+                    self.write_to_disk(outfile, stem, docInfo)
+        os.unlink("index.old.txt")
