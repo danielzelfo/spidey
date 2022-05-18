@@ -1,6 +1,8 @@
 import json
-from HTMLParser import HTMLParser
 import os
+from alive_progress import alive_bar
+from HTMLParser import HTMLParser
+from Ranking import Ranking
 
 class Indexer:
 
@@ -34,8 +36,15 @@ class Indexer:
             # negative position to denote a title
             self.current_data[stem].append([self.document_count, [-1*(pos+1) for pos in positions]])
 
+        # tokens from text content file
+        tokens = []
+        pos = 0
+        for token in textContent.split():
+            tokens.append([token, pos])
+            pos += len(token) + 1
+        
         # Get stems & positions dictionary
-        stemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(textContent))
+        stemPositions = self.htmlParser.tokensAndPositionsToStemDict(tokens)
         
         # Add new token value into current data
         # Offload if number of value exceeds threshold
@@ -87,6 +96,7 @@ class Indexer:
         lines = [line[len(stem)+1:] for line, stem in zip(lines, stems)]
 
         current_stem = None
+        stem_count = 0
         while len(lines) > 0:
             # get minimum stem
             min_idx = stems.index(min(stems))
@@ -94,6 +104,7 @@ class Indexer:
             if current_stem is None or current_stem != stems[min_idx]:
                 current_stem = stems[min_idx]
                 outfile.write(f"\n{current_stem}:")
+                stem_count += 1
             
             # write the line
             outfile.write(lines[min_idx])
@@ -114,6 +125,7 @@ class Indexer:
                 lines[min_idx] = lines[min_idx][len(stems[min_idx])+1:]
         
         outfile.close()
+        return stem_count
     
     def parseLine(self, line):
         documentsInfo = []
@@ -136,21 +148,14 @@ class Indexer:
 
         return stem, documentsInfo
 
-    def positionsToRank(self, positions):
-        rank = 0
-        for pos in positions:
-            if pos < 0: # title has 2 times more importance
-                rank += 2
-            else:
-                rank += 1
-        return rank
-
-    def sortIndex(self):
+    def sortIndex(self, num_stems):
         os.rename("index.txt", "index.old.txt")
         with open("index.old.txt", "r") as infile:
             with open("index.txt", "w") as outfile:
-                for line in infile:
-                    stem, docInfo = self.parseLine(line)
-                    docInfo.sort(key=lambda x: self.positionsToRank(x[1]), reverse=True)
-                    self.write_to_disk(outfile, stem, docInfo)
+                with alive_bar(num_stems+1, force_tty=True) as bar:
+                    for line in infile:
+                        stem, docInfo = self.parseLine(line)
+                        docInfo.sort(key=lambda x: Ranking.positionsToRank(x[1]), reverse=True)
+                        self.write_to_disk(outfile, stem, docInfo)
+                        bar()
         os.unlink("index.old.txt")

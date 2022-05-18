@@ -1,10 +1,8 @@
 from nltk.stem import PorterStemmer
 from HTMLParser import HTMLParser
-from nltk.tokenize import RegexpTokenizer
+from Ranking import Ranking
 import json
 import datetime
-import contractions
-import re
 import math
 
 class Query:
@@ -29,13 +27,8 @@ class Query:
 
     
     def tokenizeStop(self, text):
-        self.htmlParser.tokenizer = RegexpTokenizer(r"[a-z0-9']+")
         tokens = [x[0] for x in self.htmlParser.tokenize(text.strip())]
-        newtokens = []
-        for token in tokens:
-            for t in re.split(r"\s|'", contractions.fix(token)):
-                if not t in self.stopwords and len(t) >= self.minlength:
-                    newtokens.append(t)
+        newtokens = [t for t in tokens if not t in self.stopwords and len(t) >= self.minlength]
         return newtokens
         
     def initializeIndexStemPositions(self):
@@ -137,7 +130,7 @@ class Query:
             for doc in documents:
                 #count frequency (calculate score with tf-idf)
                 if doc[0] in documentSet:
-                    score = self.tf_idfScore(documentFrequency, len(doc[1]))
+                    score = self.tf_idfScore(documentFrequency, Ranking.positionsToRank(doc[1]))
                     if doc[0] in documentRank:
                         documentRank[doc[0]] = documentRank[doc[0]] + score
                     else:

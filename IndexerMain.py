@@ -37,10 +37,10 @@ def run():
         indexer.offload()
     
     print("Merging index files...")
-    indexer.k_way_merge_files()
+    stem_count = indexer.k_way_merge_files()
 
     print("Sorting index file...")
-    indexer.sortIndex()
+    indexer.sortIndex(stem_count)
 
     # delete partial index files
     for file in glob.glob('index_*.txt'):

@@ -1,22 +1,29 @@
 from bs4 import BeautifulSoup as BS
 from bs4.element import Comment
 from nltk.stem import PorterStemmer
-from nltk.tokenize import RegexpTokenizer
 from urllib.parse import urlparse
 import os
+import re
+import contractions
 
 class HTMLParser:
     def __init__(self):
         # Initialize Porter Stemmer
         self.porterStemmer = PorterStemmer()
-        # Initlize tokenizer from nltk
-        self.tokenizer = RegexpTokenizer(r"[a-z0-9]+")
+        # tokenizing pattern: note: apostrophes are removed
+        self.pattern = re.compile(r"[a-z0-9']+")
     
     # Separates string of text into individual tokens, paired with a list of term positions.
     # returns -> list(str, term pos(int))
+    # expand contractions
     def tokenize(self, text):
         text = text.lower()
-        return ([text[span[0]:span[1]], span[0]] for span in self.tokenizer.span_tokenize(text))
+        pos = 0
+        for res in self.pattern.finditer(text):
+            token = res.group()
+            for t in re.split(r"\s|'", contractions.fix(token)):
+                yield [t, pos]
+                pos += len(t) + 1
     
     # Converts list of token & token positions into a dictionary
     # returns dictionary 
