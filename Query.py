@@ -21,7 +21,7 @@ class Query:
         
         self.minlength = 3
         self.stopwords = {'about', 'were', 'having', 'more', 'same', 'for', 'your', 'very', 'up', 'out', 'has', 'again', 'some', 'through', 'all', 'not', 'we', 'during', 'be', 'between', 'until', 'whom', 'theirs', 'few', 'most', 'where', 'such', 'he', 'what', 'those', 'no', 'an', 'let', 'it', 'too', 'you', 'have', 'ours', 'her', 'will', 'who', 'than', 'further', 'after', 'are', 'if', 'was', 'doing', 'our', 'been', 'then', 'into', 'ought', 'the', 'over', 'us', 'while', 'own', 'being', 'his', 'these', 'cannot', 'down', 'in', 'below', 'yourselves', 'their', 'or', 'so', 'him', 'this', 'but', 'they', 'on', 'both', 'once', 'itself', 'them', 'only', 'by', 'there', 'is', 'herself', 'how', 'she', 'did', 'to', 'a', 'themselves', 'which', 'off', 'because', 'against', 'yourself', 'with', 'at', 'its', 'before', 'does', 'that', 'had', 'me', 'i', 'other', 'each', 'hers', 'and', 'as', 'nor', 'under', 'himself', 'am', 'any', 'would', 'from', 'of', 'should', 'must', 'my', 'myself', 'why', 'above', 'when', 'shall', 'could', 'here', 'yours', 'do', 'ourselves'}
-        
+
         with open("num_documents.txt", "r") as f:
             self.numDocuments = int(f.readline().strip())
         
@@ -58,21 +58,28 @@ class Query:
         position = self.indexStemPositions[stem]
         # seek in self.indexFile to that position
         self.indexFile.seek(position)
-        # read line
-        line = self.indexFile.readline().strip()
-        documents = line[len(line.split(":")[0])+1:]
-
-        # Read [length to read]{doc1 json}[length to read]{doc2 json}
-        curidx = 0
-        while curidx < len(documents):
-            jsonlenstr = ""
-            for char in documents[curidx+1:]:
-                if char == "]":
-                    break              
-                jsonlenstr += char
-            jsonlen = int(jsonlenstr)
-            documentsInfo.append(json.loads(documents[curidx + len(jsonlenstr) + 2 : curidx + len(jsonlenstr) + 2 + jsonlen]))
-            curidx += len(jsonlenstr) + 2 + jsonlen
+        
+        #skip stem / colon after
+        while True:
+            c = self.indexFile.read(1)
+            if c == ':':
+                break
+        
+        jsonlenstr = ""
+        self.indexFile.read(1) #skip [
+        while True:
+            c = self.indexFile.read(1)
+            if not c or c == '\n':
+                break
+            if c == "]":
+                jsonlen = int(jsonlenstr)
+                documentsInfo.append(json.loads(self.indexFile.read(jsonlen)))
+                jsonlenstr = ""
+                c = self.indexFile.read(1) #skip [
+                if not c or c == '\n':
+                    break
+            else:
+                jsonlenstr += c
         
         return documentsInfo
     
