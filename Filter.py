@@ -12,6 +12,7 @@ class Filter:
         self.htmlParser = HTMLParser()
         self.countSuccessFul = 0
         self.encountered_urls = set()
+        self.footprints = []
 
     def get_footprint(self, dict1):
         keys = list(dict1.keys())
@@ -60,11 +61,30 @@ class Filter:
                     else:
                         freqDict[token] += 1
                     f.write(f"{token} ")
+                
+            if length == 0:
+                return
             
             footprint = [self.get_footprint(freqDict), length]
+            # loop through all other footprints and compare
+            # if similar then stop here
+            for i, comparefootprint in enumerate(self.footprints):
+                counter = 0
+                for j in range(64):
+                    if footprint[0][j] == comparefootprint[0][j]: 
+                        counter += 1
+                similarity = counter/64
+                if similarity > .90 and min(comparefootprint[1], footprint[1])/max(comparefootprint[1], footprint[1]) > .90:
+                    # print("SIMILAR PAGES -- ")
+                    # print(url)
+                    # print("AND DOC ID: ", i)
+                    # print(similarity)
+                    # print("-----")
+                    return
             
+            self.footprints.append(footprint)
             # save document Info
-            docInfoFile.write(f"{json.dumps([title, url, filename, footprint])}\n")
+            docInfoFile.write(f"{json.dumps([title, url, filename])}\n")
 
             self.countSuccessFul += 1
 

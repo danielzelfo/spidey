@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from alive_progress import alive_bar
 from HTMLParser import HTMLParser
@@ -17,6 +18,10 @@ class Indexer:
         self.document_count = 0
         self.index_num = 0
         self.num_values = 0
+
+        #Total number of documents
+        with open("num_documents.txt", "r") as f:
+            self.numDocuments = int(f.readline().strip())
         
     # filepath ex: direc/file.json
     # Stores tokens into dictionary
@@ -60,6 +65,88 @@ class Indexer:
                 self.num_values = 0
         
         self.document_count += 1
+    
+    def post_index_score(self, num_stems):
+        os.rename("index.txt", "index.old.txt")
+        with open("index.old.txt", "r") as infile:
+            with open("index.txt", "w") as outfile:
+                with alive_bar(num_stems+1, force_tty=True) as bar:
+                    for line in infile:
+                        # old stemInfo{'stem', [[doc number, [postions]]} ->
+                        # new stemInfo{'stem', [[doc number, [postions], tfidf_score]}
+                        stem, stemInfo = self.parseLine(line)
+                        #TFIDF SCORE
+                        scores = self.calculateTfIdfScore(stemInfo)
+                        #APPEND TO docInfo
+                        for posting in stemInfo:
+                            doc_number = posting[0]
+                            doc_score = scores[doc_number]
+                            posting.append(doc_score)
+
+                        # sort by td-idf score
+                        stemInfo.sort(key=lambda x: x[2], reverse=True)
+
+                        #rewrite
+                        self.write_to_disk(outfile, stem, stemInfo)
+                        bar()
+        os.unlink("index.old.txt")
+    
+    # TODO: Fix bug
+    '''
+    Traceback (most recent call last):
+    File "IndexerMain.py", line 54, in <module>
+        run()
+    File "IndexerMain.py", line 43, in run
+        indexer.post_index_score(stem_count)
+    File "Indexer.py", line 79, in post_index_score
+        scores = self.calculateTfIdfScore(stemInfo)
+    File "Indexer.py", line 104, in calculateTfIdfScore
+        score = self.tf_idfScore(documentFrequency, Ranking.positionsToRank(doc[1]))
+    TypeError: 'int' object is not subscriptable
+    '''
+    def calculateTfIdfScore(self, documentInfo):
+        documentRank = {}
+        # for each word in documentInfo
+        for docInfo in documentInfo:
+            # for each document in word, check if document is in word posting
+            # count the frequency, store into a dictionary
+            documents = docInfo[1]
+            documentFrequency = len(documents)
+            for doc in documents:
+                #count frequency (calculate score with tf-idf)
+                score = self.tf_idfScore(documentFrequency, Ranking.positionsToRank(doc[1]))
+                if doc[0] in documentRank:
+                    documentRank[doc[0]] = documentRank[doc[0]] + score
+                else:
+                    documentRank[doc[0]] = score
+
+        documentRank = dict(sorted(documentRank.items(), key = lambda x: x[1], reverse=True))
+        
+        return documentRank
+        
+    # tf-idf score:
+    # w(t,d) = (1+log(term freq per document)) * log(N/doc freq)
+    def tf_idfScore(self, docFreq, termFreq):
+        tf = self.tfScore(termFreq)
+
+        idf = self.idfScore(docFreq)
+
+        tf_idf = tf * idf
+
+        # print(f"tf{tf}, idf{idf}, tf_idf, {tf_idf}")
+
+        return tf_idf
+
+    def tfScore(self, termFreq):
+        weightScore = 0
+        if termFreq > 0:
+            weightScore = 1 + math.log10(termFreq)
+
+        return weightScore
+
+    # docFreq is the the number of documents that contain term
+    def idfScore(self, docFreq):
+        return math.log10(self.numDocuments/docFreq)
     
     # Opens/Create file for offloading tokens
     # write everything in current_data / clear current_data
@@ -147,15 +234,3 @@ class Indexer:
             curidx += len(jsonlenstr) + 2 + jsonlen
 
         return stem, documentsInfo
-
-    def sortIndex(self, num_stems):
-        os.rename("index.txt", "index.old.txt")
-        with open("index.old.txt", "r") as infile:
-            with open("index.txt", "w") as outfile:
-                with alive_bar(num_stems+1, force_tty=True) as bar:
-                    for line in infile:
-                        stem, docInfo = self.parseLine(line)
-                        docInfo.sort(key=lambda x: Ranking.positionsToRank(x[1]), reverse=True)
-                        self.write_to_disk(outfile, stem, docInfo)
-                        bar()
-        os.unlink("index.old.txt")

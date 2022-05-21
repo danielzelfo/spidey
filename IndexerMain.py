@@ -39,12 +39,13 @@ def run():
     print("Merging index files...")
     stem_count = indexer.k_way_merge_files()
 
-    print("Sorting index file...")
-    indexer.sortIndex(stem_count)
+    print("Scorign and sorting index file...")
+    indexer.post_index_score(stem_count)
 
     # delete partial index files
     for file in glob.glob('index_*.txt'):
         os.unlink(file)
+
 
     run_log.write("INDEX RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()
