@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import os
 import re
 import contractions
+import time
 
 class HTMLParser:
     def __init__(self):
@@ -22,8 +23,24 @@ class HTMLParser:
         for res in self.pattern.finditer(text):
             token = res.group()
             for t in re.split(r"\s|'", contractions.fix(token)):
+                if len(t) == 0:
+                    continue
                 yield [t, pos]
                 pos += len(t) + 1
+    
+    def bigram_tokenize(self, text=None, tokens_iter=None):
+        if tokens_iter is None:
+            if text is None:
+                return
+            tokens_iter = self.tokenize(text)
+        
+        try:
+            out = next(tokens_iter)
+        except StopIteration:
+            return
+        for xi in tokens_iter:
+            yield [f"{out[0]} {xi[0]}", out[1]]
+            out = xi
     
     # Converts list of token & token positions into a dictionary
     # returns dictionary 

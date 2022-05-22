@@ -1,8 +1,10 @@
 __pycache__/
 /env/
 /index.txt
+/bigram_index.txt
 /index.old.txt
 /index_*.txt
+/bigram_index_*.txt
 /temp_file.txt
 /run_log.txt
 /docInfo.txt

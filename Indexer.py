@@ -7,7 +7,7 @@ from Ranking import Ranking
 
 class Indexer:
 
-    def __init__(self, entries_per_offload=1000000, run_log=None):
+    def __init__(self, numDocuments, entries_per_offload=1000000, run_log=None):
         self.entries_per_offload = entries_per_offload
         self.run_log = run_log
 
@@ -16,13 +16,46 @@ class Indexer:
         self.current_data = {}
 
         self.document_count = 0
-        self.index_num = 0
+        self.index_num = {}
         self.num_values = 0
 
+        self.BIGRAM_INDEX_PATH = "bigram_index"
+        self.INDEX_PATH = "index"
+
+        self.ALL_INDEX_PATHS = [self.INDEX_PATH, self.BIGRAM_INDEX_PATH]
+
+        for indexfile in self.ALL_INDEX_PATHS:
+            # delete index file from previous run
+            if os.path.isfile(f"{indexfile}.txt"):
+                os.unlink(f"{indexfile}.txt")
+
         #Total number of documents
-        with open("num_documents.txt", "r") as f:
-            self.numDocuments = int(f.readline().strip())
-        
+        self.numDocuments = numDocuments
+    
+    def reset(self):
+        self.document_count = 0
+        self.num_values = 0
+
+    def processStemPositions(self, stemPositions, index_path, positionFilter=lambda x: x):
+        for stem, positions in stemPositions.items():
+            if not stem in self.current_data:
+                self.current_data[stem] = []
+            
+            # negative position to denote a title
+            self.current_data[stem].append([self.document_count, positionFilter(positions)])
+
+            self.num_values += 1
+            if self.num_values >= self.entries_per_offload:
+                self.offload(index_path)
+                self.num_values = 0
+    
+    def tokenizeProcTextContent(self, text):
+        # tokens from text content file
+        pos = 0
+        for token in text.split():
+            yield [token, pos]
+            pos += len(token) + 1
+
     # filepath ex: direc/file.json
     # Stores tokens into dictionary
     # Offloads dictionary once token entires exceeds threshold
@@ -34,37 +67,50 @@ class Indexer:
         #title stems and positions dictionary
         titleStemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(title))
 
-        for stem, positions in titleStemPositions.items():
-            if not stem in self.current_data:
-                self.current_data[stem] = []
-            
-            # negative position to denote a title
-            self.current_data[stem].append([self.document_count, [-1*(pos+1) for pos in positions]])
+        self.processStemPositions(titleStemPositions, self.INDEX_PATH)
 
         # tokens from text content file
-        tokens = []
-        pos = 0
-        for token in textContent.split():
-            tokens.append([token, pos])
-            pos += len(token) + 1
+        tokens = self.tokenizeProcTextContent(textContent)
         
         # Get stems & positions dictionary
         stemPositions = self.htmlParser.tokensAndPositionsToStemDict(tokens)
         
         # Add new token value into current data
         # Offload if number of value exceeds threshold
-        for stem, positions in stemPositions.items():
-            if not stem in self.current_data:
-                self.current_data[stem] = []
-                
-            self.current_data[stem].append([self.document_count, positions])
-            
-            self.num_values += 1
-            if self.num_values >= self.entries_per_offload:
-                self.offload()
-                self.num_values = 0
+        self.processStemPositions(stemPositions, self.INDEX_PATH)
         
         self.document_count += 1
+
+        if self.document_count == self.numDocuments:
+            self.offload(self.INDEX_PATH)
+            self.reset()
+
+    def bigram_index(self, filepath, title):
+        # extract data from file
+        with open(filepath) as f:
+            textContent = f.read()
+        
+        #title stems and positions dictionary
+        titleStemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.bigram_tokenize(text=title))
+
+        self.processStemPositions(titleStemPositions, self.BIGRAM_INDEX_PATH, lambda positions: [-1*(pos+1) for pos in positions])
+
+        # tokens from text content file
+        tokens = self.tokenizeProcTextContent(textContent)
+        tokens = self.htmlParser.bigram_tokenize(self, tokens_iter=tokens)
+        
+        # Get stems & positions dictionary
+        stemPositions = self.htmlParser.tokensAndPositionsToStemDict(tokens)
+        
+        # Add new token value into current data
+        # Offload if number of value exceeds threshold
+        self.processStemPositions(stemPositions, self.BIGRAM_INDEX_PATH)
+        
+        self.document_count += 1
+
+        if self.document_count == self.numDocuments:
+            self.offload(self.BIGRAM_INDEX_PATH)
+            self.reset()
     
     def post_index_score(self, num_stems):
         os.rename("index.txt", "index.old.txt")
@@ -150,14 +196,16 @@ class Indexer:
     
     # Opens/Create file for offloading tokens
     # write everything in current_data / clear current_data
-    def offload(self):
-        print(f"OFFLOADING {self.index_num}...")
-        with open(f"index_{self.index_num}.txt", "w") as f:
+    def offload(self, index_path):
+        if not index_path in self.index_num:
+            self.index_num[index_path] = 0
+        print(f"OFFLOADING {self.index_num[index_path]}...")
+        with open(f"{index_path}_{self.index_num[index_path]}.txt", "w") as f:
             for token, entries in sorted(self.current_data.items(), key=lambda x: x[0]):
                 self.write_to_disk(f, token, entries)
         
         self.current_data = {}
-        self.index_num += 1
+        self.index_num[index_path] += 1
     
     # writes token and entries into file
     def write_to_disk(self, file, token, entries):
@@ -170,49 +218,60 @@ class Indexer:
         
     # Merges all index_*.txt files together into one big index.txt file
     def k_way_merge_files(self):
-        # open the merged index file
-        outfile = open("index.txt", "w")
-        # open the k index files
-        infiles = [open(f"index_{k}.txt", "r") for k in range(self.index_num)]
+        stem_counts = {}
+        for index_path in self.ALL_INDEX_PATHS:
+            print(f"Merging {index_path}...")
+            # open the merged index file
+            outfile = open(f"{index_path}.txt", "w")
+            # open the k index files
+            infile_paths = [f"{index_path}_{k}.txt" for k in range(self.index_num[index_path])]
+            infiles = [open(p, "r") for p in infile_paths]
 
-        # read first line of all k index files
-        lines = [x for x in [file.readline().strip() for file in infiles] if x]
+            # read first line of all k index files
+            lines = [x for x in [file.readline().strip() for file in infiles] if x]
 
-        # stems are before the colon / lines are everything after the stem
-        stems = [line.split(":")[0] for line in lines]
-        lines = [line[len(stem)+1:] for line, stem in zip(lines, stems)]
+            # stems are before the colon / lines are everything after the stem
+            stems = [line.split(":")[0] for line in lines]
+            lines = [line[len(stem)+1:] for line, stem in zip(lines, stems)]
 
-        current_stem = None
-        stem_count = 0
-        while len(lines) > 0:
-            # get minimum stem
-            min_idx = stems.index(min(stems))
-            # if the minimum stem is not that same as the last one (or the first one) write it
-            if current_stem is None or current_stem != stems[min_idx]:
-                current_stem = stems[min_idx]
-                outfile.write(f"\n{current_stem}:")
-                stem_count += 1
+            current_stem = None
+            stem_count = 0
+            while len(lines) > 0:
+                # get minimum stem
+                min_idx = stems.index(min(stems))
+                # if the minimum stem is not that same as the last one (or the first one) write it
+                if current_stem is None or current_stem != stems[min_idx]:
+                    current_stem = stems[min_idx]
+                    outfile.write(f"\n{current_stem}:")
+                    stem_count += 1
+                
+                # write the line
+                outfile.write(lines[min_idx])
+                
+                # read next line of file with minimum line
+                lines[min_idx] = infiles[min_idx].readline().strip()
+
+                # delete the file / line if EOF is reached
+                if not lines[min_idx]:
+                    del lines[min_idx]
+                    del stems[min_idx]
+                    infiles[min_idx].close()
+                    del infiles[min_idx]
+                
+                # separate stem and line
+                else:
+                    stems[min_idx] = lines[min_idx].split(":")[0]
+                    lines[min_idx] = lines[min_idx][len(stems[min_idx])+1:]
             
-            # write the line
-            outfile.write(lines[min_idx])
-            
-            # read next line of file with minimum line
-            lines[min_idx] = infiles[min_idx].readline().strip()
+            stem_counts[index_path] = stem_count
 
-            # delete the file / line if EOF is reached
-            if not lines[min_idx]:
-                del lines[min_idx]
-                del stems[min_idx]
-                infiles[min_idx].close()
-                del infiles[min_idx]
-            
-            # separate stem and line
-            else:
-                stems[min_idx] = lines[min_idx].split(":")[0]
-                lines[min_idx] = lines[min_idx][len(stems[min_idx])+1:]
-        
-        outfile.close()
-        return stem_count
+            outfile.close()
+
+            for file in infile_paths:
+                os.unlink(file)
+
+        return stem_counts
+
     
     def parseLine(self, line):
         documentsInfo = []
