@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore")
 
 #Directory of files
 input_directory = "page_data/data/"
-output_directory = "page_data/filtered_data/"
+output_directory = "page_data/filtered_data_new/"
 if not os.path.isdir(output_directory):
     os.mkdir(output_directory)
 

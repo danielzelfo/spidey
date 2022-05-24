@@ -13,38 +13,40 @@ directory = "page_data/filtered_data/"
 
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.
-def run():
-    # delete index file from previous run
-    if os.path.isfile("index.txt"):
-        os.unlink("index.txt")
-    
-    run_log = open("run_log.txt", "a")
-    run_log.write("INDEX RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
 
-    indexer = Indexer(run_log=run_log)
-
-    with open("num_documents.txt", "r") as f:
-        num_documents = int(f.read().strip())
-    
+def build_index(num_documents, index_function):
     with alive_bar(num_documents, force_tty=True) as bar:
         with open("docInfo.txt", "r") as files:
             for fileInfo in files:
                 fileInfoArr = json.loads(fileInfo)
                 title = fileInfoArr[0]
                 filepath = os.path.join(directory, fileInfoArr[2])
-                indexer.index(filepath, title)
+                index_function(filepath, title)
                 bar()
-        indexer.offload()
+
+def run():    
+    run_log = open("run_log.txt", "a")
+    run_log.write("INDEX RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
+
+    with open("num_documents.txt", "r") as f:
+        num_documents = int(f.read().strip())
+
+    indexer = Indexer(num_documents, run_log=run_log)
     
-    print("Merging index files...")
-    stem_count = indexer.k_way_merge_files()
+    print("BUILDING INDEX...")
+    build_index(num_documents, indexer.index)
+    print(indexer.document_count, num_documents)
+    
+    # reset indexing variables
+    indexer.reset()
 
-    print("Sorting index file...")
-    indexer.sortIndex(stem_count)
+    print("BUILDING BIGRAM INDEX...")
+    build_index(num_documents, indexer.bigram_index)
+    
+    stem_counts = indexer.k_way_merge_files()
 
-    # delete partial index files
-    for file in glob.glob('index_*.txt'):
-        os.unlink(file)
+    print("Scoring and sorting index file...")
+    indexer.post_index_score(stem_counts[indexer.INDEX_PATH])
 
     run_log.write("INDEX RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()

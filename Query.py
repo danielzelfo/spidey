@@ -15,7 +15,7 @@ class Query:
         with open("docInfo.txt", "r") as f:
             for line in f:
                 docInfo = json.loads(line.strip())
-                self.docInfoLst.append(docInfo[:2] + [docInfo[3]])#only save title, url, and footprint
+                self.docInfoLst.append(docInfo[:2])#only save title and url
         
         self.minlength = 3
         self.stopwords = {'about', 'were', 'having', 'more', 'same', 'for', 'your', 'very', 'up', 'out', 'has', 'again', 'some', 'through', 'all', 'not', 'we', 'during', 'be', 'between', 'until', 'whom', 'theirs', 'few', 'most', 'where', 'such', 'he', 'what', 'those', 'no', 'an', 'let', 'it', 'too', 'you', 'have', 'ours', 'her', 'will', 'who', 'than', 'further', 'after', 'are', 'if', 'was', 'doing', 'our', 'been', 'then', 'into', 'ought', 'the', 'over', 'us', 'while', 'own', 'being', 'his', 'these', 'cannot', 'down', 'in', 'below', 'yourselves', 'their', 'or', 'so', 'him', 'this', 'but', 'they', 'on', 'both', 'once', 'itself', 'them', 'only', 'by', 'there', 'is', 'herself', 'how', 'she', 'did', 'to', 'a', 'themselves', 'which', 'off', 'because', 'against', 'yourself', 'with', 'at', 'its', 'before', 'does', 'that', 'had', 'me', 'i', 'other', 'each', 'hers', 'and', 'as', 'nor', 'under', 'himself', 'am', 'any', 'would', 'from', 'of', 'should', 'must', 'my', 'myself', 'why', 'above', 'when', 'shall', 'could', 'here', 'yours', 'do', 'ourselves'}
@@ -92,32 +92,57 @@ class Query:
     def ANDboolean(self, documentInfoDict):
         if len(documentInfoDict) == 0:
             return set()
+
         documentInfoDictItems = list(documentInfoDict.items())
 
-        documentswithAll = set([docInfo[0] for docInfo in documentInfoDictItems[0][1]])
-        for stemDocInfo in documentInfoDictItems[1:]:
-            documentswithAll = documentswithAll.intersection(docInfoItem[0] for docInfoItem in stemDocInfo[1])
+        cutoffPoint = 100
+        maxCutofPoint = 1600
+        lengthneeded = 5
+        while True:
+            documentswithAll = [[docInfo[0], docInfo[2]] for docInfo in documentInfoDictItems[0][1][:cutoffPoint]]
+            
+            for stemDocInfo in documentInfoDictItems[1:]:
+                documentswithAll = self.intersect(documentswithAll, [[docInfoItem[0], docInfoItem[2]] for docInfoItem in stemDocInfo[1][:cutoffPoint]], lambda x: x[0])
+            
+            if cutoffPoint >= maxCutofPoint:
+                break
+
+            if len(documentswithAll) < lengthneeded:
+                cutoffPoint*=2
+                continue
+            
+            break
         
-        rankedDocuments = self.rankDocumentByScore(documentswithAll, documentInfoDictItems)
-        #return first 5 of ranked documents
-        return list(rankedDocuments.keys())
+        documentswithAll = sorted(documentswithAll, key=lambda x: x[1], reverse=True)[:lengthneeded]
 
-    def similarTexts(self, docList):
-        # Check list of documents: if they are not similar, add it to a new list
-        top5 = list()
-        i = 0
-        while((i < len(docList) - 1) and (len(top5) < 5)):   #loop until we have 5 items in new list or end of documents
-            counter = 0
-            for j in range(64):
-                if self.docInfoLst[docList[i]][2][0][j] == self.docInfoLst[docList[i + 1]][2][0][j]: #get footprint of i and i+1 and compare
-                    counter += 1
-            #Calculate percent of similar bits
-            similarity = counter/self.docInfoLst[i][2][1]       #take similarity of the two footprints
-            if similarity < .85:
-                top5.append(docList[i])               #if similarity is less than the threshold, append to new list called top5
-            i += 1
-        return top5
+        return documentswithAll
+    
+    def find(self, lst, value, key):
+        for i in lst:
+            if key(i) == key(value):
+                return i
+        return None
 
+    # make list unique -- preserve order
+    def unique(self, lst, key):
+        checkseen = set()
+        newlst = []
+        for i in lst:
+            if key(i) not in checkseen:
+                newlst.append(i)
+            checkseen.add(key(i))
+        return newlst
+
+    def intersect(self, lst1, lst2, key):
+        lst3 = []
+        lst1 = self.unique(lst1, key=lambda x: x[0])
+        lst2 = self.unique(lst2, key=lambda x: x[0])
+        for value in lst1:
+            found = self.find(lst2, value, key)
+            if found:
+                lst3.append([value[0], value[1] + found[1]])
+        return lst3
+    
     # Takes in a set of document id numbers and a list of (documentInfoDict) items
     def rankDocumentByScore(self, documentSet, documentInfo):
         documentRank = {}
@@ -141,29 +166,29 @@ class Query:
         return documentRank
         
         
-    # tf-idf score:
-    # w(t,d) = (1+log(term freq per document)) * log(N/doc freq)
-    def tf_idfScore(self, docFreq, termFreq):
-        tf = self.tfScore(termFreq)
+    # # tf-idf score:
+    # # w(t,d) = (1+log(term freq per document)) * log(N/doc freq)
+    # def tf_idfScore(self, docFreq, termFreq):
+    #     tf = self.tfScore(termFreq)
 
-        idf = self.idfScore(docFreq)
+    #     idf = self.idfScore(docFreq)
 
-        tf_idf = tf * idf
+    #     tf_idf = tf * idf
 
-        # print(f"tf{tf}, idf{idf}, tf_idf, {tf_idf}")
+    #     # print(f"tf{tf}, idf{idf}, tf_idf, {tf_idf}")
 
-        return tf_idf
+    #     return tf_idf
 
-    def tfScore(self, termFreq):
-        weightScore = 0
-        if termFreq > 0:
-            weightScore = 1 + math.log10(termFreq)
+    # def tfScore(self, termFreq):
+    #     weightScore = 0
+    #     if termFreq > 0:
+    #         weightScore = 1 + math.log10(termFreq)
 
-        return weightScore
+    #     return weightScore
 
-    # docFreq is the the number of documents that contain term
-    def idfScore(self, docFreq):
-        return math.log10(self.numDocuments/docFreq)
+    # # docFreq is the the number of documents that contain term
+    # def idfScore(self, docFreq):
+    #     return math.log10(self.numDocuments/docFreq)
 
     def printDocumentsInfo(self, docNums):
         print("\n".join(self.docInfoLst[docNum][0]+"\n\t"+self.docInfoLst[docNum][1] for docNum in docNums))
@@ -171,8 +196,8 @@ class Query:
     def printQueryResults(self, text):
         # time start
         start_time = datetime.datetime.now()
-        res = self.similarTexts(list(self.ANDboolean(self.docInfoRetrieve(text))))
+        res = list(self.ANDboolean(self.docInfoRetrieve(text)))
         # time end
         end_time = datetime.datetime.now()
         print(f"time: {(end_time - start_time).total_seconds() * 1000.0} milliseconds")
-        self.printDocumentsInfo(res)
+        self.printDocumentsInfo([r[0] for r in res])
