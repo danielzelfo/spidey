@@ -45,8 +45,8 @@ def run():
     
     stem_counts = indexer.k_way_merge_files()
 
-    # print("Scorign and sorting index file...")
-    # indexer.post_index_score(stem_count)
+    print("Scoring and sorting index file...")
+    indexer.post_index_score(stem_counts[indexer.INDEX_PATH])
 
     run_log.write("INDEX RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()

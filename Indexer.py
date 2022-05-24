@@ -6,7 +6,6 @@ from HTMLParser import HTMLParser
 from Ranking import Ranking
 
 class Indexer:
-
     def __init__(self, numDocuments, entries_per_offload=1000000, run_log=None):
         self.entries_per_offload = entries_per_offload
         self.run_log = run_log
@@ -36,13 +35,13 @@ class Indexer:
         self.document_count = 0
         self.num_values = 0
 
-    def processStemPositions(self, stemPositions, index_path, positionFilter=lambda x: x):
+    def processStemPositions(self, stemPositions, index_path):
         for stem, positions in stemPositions.items():
             if not stem in self.current_data:
                 self.current_data[stem] = []
             
             # negative position to denote a title
-            self.current_data[stem].append([self.document_count, positionFilter(positions)])
+            self.current_data[stem].append([self.document_count, positions])
 
             self.num_values += 1
             if self.num_values >= self.entries_per_offload:
@@ -61,19 +60,29 @@ class Indexer:
     # Offloads dictionary once token entires exceeds threshold
     def index(self, filepath, title):
         # extract data from file
+        if not os.path.isfile(filepath):
+            print("WARNING: called index with file that doesn't exist.")
+            return
+        
         with open(filepath) as f:
             textContent = f.read()
         
         #title stems and positions dictionary
         titleStemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.tokenize(title))
-
-        self.processStemPositions(titleStemPositions, self.INDEX_PATH)
-
+        stemPositions = {}
+        for stem, positions in titleStemPositions.items():
+            stemPositions[stem] = [-1*(pos+1) for pos in positions]
+        
         # tokens from text content file
         tokens = self.tokenizeProcTextContent(textContent)
         
         # Get stems & positions dictionary
-        stemPositions = self.htmlParser.tokensAndPositionsToStemDict(tokens)
+        stemPositionsText = self.htmlParser.tokensAndPositionsToStemDict(tokens)
+        for stem, positions in stemPositionsText.items():
+            if stem in stemPositions:
+                stemPositions[stem] += positions
+            else:
+                stemPositions[stem] = positions
         
         # Add new token value into current data
         # Offload if number of value exceeds threshold
@@ -86,21 +95,31 @@ class Indexer:
             self.reset()
 
     def bigram_index(self, filepath, title):
+        if not os.path.isfile(filepath):
+            print("WARNING: called bigram_index with file that doesn't exist.")
+            return
+
         # extract data from file
         with open(filepath) as f:
             textContent = f.read()
         
         #title stems and positions dictionary
         titleStemPositions = self.htmlParser.tokensAndPositionsToStemDict(self.htmlParser.bigram_tokenize(text=title))
-
-        self.processStemPositions(titleStemPositions, self.BIGRAM_INDEX_PATH, lambda positions: [-1*(pos+1) for pos in positions])
-
+        stemPositions = {}
+        for stem, positions in titleStemPositions.items():
+            stemPositions[stem] = [-1*(pos+1) for pos in positions]
+        
         # tokens from text content file
         tokens = self.tokenizeProcTextContent(textContent)
         tokens = self.htmlParser.bigram_tokenize(self, tokens_iter=tokens)
         
         # Get stems & positions dictionary
-        stemPositions = self.htmlParser.tokensAndPositionsToStemDict(tokens)
+        stemPositionsText = self.htmlParser.tokensAndPositionsToStemDict(tokens)
+        for stem, positions in stemPositionsText.items():
+            if stem in stemPositions:
+                stemPositions[stem] += positions
+            else:
+                stemPositions[stem] = positions
         
         # Add new token value into current data
         # Offload if number of value exceeds threshold
@@ -151,20 +170,26 @@ class Indexer:
     TypeError: 'int' object is not subscriptable
     '''
     def calculateTfIdfScore(self, documentInfo):
-        documentRank = {}
+        
         # for each word in documentInfo
-        for docInfo in documentInfo:
-            # for each document in word, check if document is in word posting
-            # count the frequency, store into a dictionary
-            documents = docInfo[1]
-            documentFrequency = len(documents)
-            for doc in documents:
-                #count frequency (calculate score with tf-idf)
-                score = self.tf_idfScore(documentFrequency, Ranking.positionsToRank(doc[1]))
-                if doc[0] in documentRank:
-                    documentRank[doc[0]] = documentRank[doc[0]] + score
-                else:
-                    documentRank[doc[0]] = score
+        # for each document in word, check if document is in word posting
+        # count the frequency, store into a dictionary
+        # new stemInfo [[doc number, [postions,pos2,pos3], tfidf_score], [doc number, [postions,pos2,pos3], tfidf_score]]
+        # documents = documentInfo[1]
+        
+        documentRank = {}
+
+        documentFrequency = len(documentInfo) # Number of documents per term
+        
+        for doc in documentInfo:
+            termFreq = Ranking.positionsToRank(doc[1])
+            #count frequency (calculate score with tf-idf)
+            score = round(self.tf_idfScore(documentFrequency, termFreq), 4)
+            
+            if doc[0] in documentRank:
+                documentRank[doc[0]] = documentRank[doc[0]] + score
+            else:
+                documentRank[doc[0]] = score
 
         documentRank = dict(sorted(documentRank.items(), key = lambda x: x[1], reverse=True))
         
@@ -220,6 +245,8 @@ class Indexer:
     def k_way_merge_files(self):
         stem_counts = {}
         for index_path in self.ALL_INDEX_PATHS:
+            if not index_path in self.index_num:
+                continue
             print(f"Merging {index_path}...")
             # open the merged index file
             outfile = open(f"{index_path}.txt", "w")
@@ -269,6 +296,8 @@ class Indexer:
 
             for file in infile_paths:
                 os.unlink(file)
+            
+            print(f"Done merging {index_path}.")
 
         return stem_counts
 

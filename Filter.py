@@ -74,12 +74,7 @@ class Filter:
                     if footprint[0][j] == comparefootprint[0][j]: 
                         counter += 1
                 similarity = counter/64
-                if similarity > .90 and min(comparefootprint[1], footprint[1])/max(comparefootprint[1], footprint[1]) > .90:
-                    # print("SIMILAR PAGES -- ")
-                    # print(url)
-                    # print("AND DOC ID: ", i)
-                    # print(similarity)
-                    # print("-----")
+                if similarity > .95 and min(comparefootprint[1], footprint[1])/max(comparefootprint[1], footprint[1]) > .95:
                     return
             
             self.footprints.append(footprint)
