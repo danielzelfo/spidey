@@ -132,43 +132,35 @@ class Indexer:
             self.reset()
     
     def post_index_score(self, num_stems):
-        os.rename("index.txt", "index.old.txt")
-        with open("index.old.txt", "r") as infile:
-            with open("index.txt", "w") as outfile:
-                with alive_bar(num_stems+1, force_tty=True) as bar:
-                    for line in infile:
-                        # old stemInfo{'stem', [[doc number, [postions]]} ->
-                        # new stemInfo{'stem', [[doc number, [postions], tfidf_score]}
-                        stem, stemInfo = self.parseLine(line)
-                        #TFIDF SCORE
-                        scores = self.calculateTfIdfScore(stemInfo)
-                        #APPEND TO docInfo
-                        for posting in stemInfo:
-                            doc_number = posting[0]
-                            doc_score = scores[doc_number]
-                            posting.append(doc_score)
+        for index_path in self.ALL_INDEX_PATHS:
+            if not index_path in self.index_num:
+                continue
+            print(f"Scoring/sorting {index_path}...")
+            os.rename(f"{index_path}.txt", f"{index_path}.old.txt")
+            with open(f"{index_path}.old.txt", "r") as infile:
+                infile.readline() # skip first new line
+                with open(f"{index_path}.txt", "w") as outfile:
+                    with alive_bar(num_stems[index_path], force_tty=True) as bar:
+                        for line in infile:
+                            # old stemInfo{'stem', [[doc number, [postions]]} ->
+                            # new stemInfo{'stem', [[doc number, [postions], tfidf_score]}
+                            stem, stemInfo = self.parseLine(line)
+                            #TFIDF SCORE
+                            scores = self.calculateTfIdfScore(stemInfo)
+                            #APPEND TO docInfo
+                            for posting in stemInfo:
+                                doc_number = posting[0]
+                                doc_score = scores[doc_number]
+                                posting.append(doc_score)
+                            # sort by td-idf score
+                            if index_path != "bigram_index":
+                                stemInfo.sort(key=lambda x: x[2], reverse=True)
 
-                        # sort by td-idf score
-                        stemInfo.sort(key=lambda x: x[2], reverse=True)
-
-                        #rewrite
-                        self.write_to_disk(outfile, stem, stemInfo)
-                        bar()
-        os.unlink("index.old.txt")
+                            #rewrite
+                            self.write_to_disk(outfile, stem, stemInfo)
+                            bar()
+            os.unlink(f"{index_path}.old.txt")
     
-    # TODO: Fix bug
-    '''
-    Traceback (most recent call last):
-    File "IndexerMain.py", line 54, in <module>
-        run()
-    File "IndexerMain.py", line 43, in run
-        indexer.post_index_score(stem_count)
-    File "Indexer.py", line 79, in post_index_score
-        scores = self.calculateTfIdfScore(stemInfo)
-    File "Indexer.py", line 104, in calculateTfIdfScore
-        score = self.tf_idfScore(documentFrequency, Ranking.positionsToRank(doc[1]))
-    TypeError: 'int' object is not subscriptable
-    '''
     def calculateTfIdfScore(self, documentInfo):
         
         # for each word in documentInfo
