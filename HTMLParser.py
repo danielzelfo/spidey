@@ -83,9 +83,19 @@ class HTMLParser:
             if title is None or title.string is None:
                 title = os.path.split(urlparse(url).path)[-1].strip()
             else:
-                title = title.string.replace("\\u", "").strip().split("\n")[0]
-            textcontent = u" ".join(t.strip() for t in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)))
-            return title, textcontent
+                title = title.string.strip().split("\n")[0]
+            
+            textcontent = []
+            
+            
+            for elem in filter(lambda element: not element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]'] and not isinstance(element, Comment), soup.findAll(text=True)):
+                elemStr = elem.strip()
+                if len(elemStr) == 0:
+                    continue
+                
+                textcontent.append([elem.parent.name, elemStr])
         else:
             title = os.path.split(urlparse(url).path)[-1].strip()
-            return title, content
+            textcontent = [[None, content]]
+        
+        return title, textcontent

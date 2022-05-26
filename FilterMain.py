@@ -7,8 +7,8 @@ import glob
 warnings.filterwarnings("ignore")
 
 #Directory of files
-input_directory = "page_data/data/"
-output_directory = "page_data/filtered_data_new/"
+input_directory = "page_data/small/"
+output_directory = "page_data/filtered_small/"
 if not os.path.isdir(output_directory):
     os.mkdir(output_directory)
 

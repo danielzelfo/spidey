@@ -13,6 +13,7 @@ class Filter:
         self.countSuccessFul = 0
         self.encountered_urls = set()
         self.footprints = []
+        self.importantTags = ["b", "strong", "h1", "h2", "h3"]
 
     def get_footprint(self, dict1):
         keys = list(dict1.keys())
@@ -45,27 +46,45 @@ class Filter:
 
         # safely extract text
         try:
-            title, textContent = self.htmlParser.extract_info(content, encoding, url)
+            
+            importantTagsExtentLists = {}
+            title, textContentElems = self.htmlParser.extract_info(content, encoding, url)
 
             filename = os.path.split(filepath)[-1]
             saveFilePath = os.path.join(self.textContentSavePath, filename)
             
             freqDict = {}
-            length = 0
+            tokenLength = 0
+            fileLength = 0
             with open(saveFilePath, "w") as f:
-                for to in self.htmlParser.tokenize(textContent):
-                    length += 1
-                    token = to[0]
-                    if not token in freqDict:
-                        freqDict[token] = 1
-                    else:
-                        freqDict[token] += 1
-                    f.write(f"{token} ")
+                for textElem in textContentElems:
+                    
+                    elemText = ""
+                    for to in self.htmlParser.tokenize(textElem[1]):
+                        tokenLength += 1
+                        token = to[0]
+                        if not token in freqDict:
+                            freqDict[token] = 1
+                        else:
+                            freqDict[token] += 1
+                        
+                        elemText += token + " "
+                    
+                    for tag in self.importantTags:
+                        if textElem[0] == tag:
+                            if not tag in importantTagsExtentLists:
+                                importantTagsExtentLists[tag] = [[fileLength, fileLength + len(elemText)-1]]
+                            else:
+                                importantTagsExtentLists[tag].append([fileLength, fileLength + len(elemText)-1])
+                            break
+                    
+                    fileLength += len(elemText)
+                    f.write(elemText)
                 
-            if length == 0:
+            if tokenLength == 0:
                 return
             
-            footprint = [self.get_footprint(freqDict), length]
+            footprint = [self.get_footprint(freqDict), tokenLength]
             # loop through all other footprints and compare
             # if similar then stop here
             for i, comparefootprint in enumerate(self.footprints):
@@ -79,7 +98,7 @@ class Filter:
             
             self.footprints.append(footprint)
             # save document Info
-            docInfoFile.write(f"{json.dumps([title, url, filename, length])}\n")
+            docInfoFile.write(f"{json.dumps([title, url, filename, tokenLength, importantTagsExtentLists], separators=(',', ':'))}\n")
         
             self.countSuccessFul += 1
 
@@ -92,7 +111,7 @@ class Filter:
     
     def run_filter(self):
         with open("docInfo.txt", "w") as docInfoFile:
-            with alive_bar(len(self.files), force_tty=True) as bar:
+            with alive_bar(len(self.files)) as bar:
                 for filepath in self.files:
                     self.filter_file(filepath, docInfoFile)
                     bar()
