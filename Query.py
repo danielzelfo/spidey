@@ -1,11 +1,8 @@
 from nltk.stem import PorterStemmer
 from HTMLParser import HTMLParser
-from Ranking import Ranking
-from collections import Counter
 import json
 import datetime
 import math
-import time
 
 class Query:
     def __init__(self):
@@ -16,6 +13,8 @@ class Query:
         self.porterStemmer = PorterStemmer()
         self.docInfoLst = []
         self.htmlParser = HTMLParser()
+        self.numResults = 5
+
         with open("docInfo.txt", "r") as f:
             for line in f:
                 docInfo = json.loads(line.strip())
@@ -28,7 +27,7 @@ class Query:
             self.numDocuments = int(f.readline().strip())
         
         self.initializeIndexStemPositions()
-        # self.initializeBigramIndexStemPositions()
+        self.initializeBigramIndexStemPositions()
 
     def tokenizeStop(self, text):
         tokens = [x[0] for x in self.htmlParser.tokenize(text.strip())]
@@ -51,7 +50,7 @@ class Query:
         for line in self.indexFile:
             stem = line.split(":")[0]
             self.indexStemPositions[stem] = currentPos
-            #print(stem, "at", currentPos)
+            
             #time.sleep(1)
             currentPos += len(line)
     
@@ -65,7 +64,7 @@ class Query:
             currentPos += len(line)
 
     # return [[docId1, [positions1]], [docId2, [positions2]], ...]
-    def stemDocInfoRetrieve(self, stem, indexFile = None, stemPositions = None):
+    def stemDocInfoRetrieve(self, stem, indexFile = None, stemPositions = None):        
         if indexFile is None:
             indexFile = self.indexFile
         
@@ -84,28 +83,24 @@ class Query:
         
         #skip stem / colon after
         while True:
-            c = self.indexFile.read(1)
+            c = indexFile.read(1)
             if c == ':':
                 break
-        
+
         jsonlenstr = ""
         indexFile.read(1) #skip [
+        
         while True:
             c = indexFile.read(1)
             if not c or c == '\n':
-                #print("not c or c == '\\n' #1")
-                print(not c, c == '\n')
                 break
             if c == "]":
-                #print("reading", jsonlenstr)
                 jsonlen = int(jsonlenstr)
                 documentsInfo.append(json.loads(indexFile.read(jsonlen)))
-                #print(documentsInfo[-1])
+                
                 jsonlenstr = ""
                 c = indexFile.read(1) #skip [
                 if not c or c == '\n':
-                    #print("not c or c == '\\n' #2")
-                   # print(not c, c == '\n')
                     break
             else:
                 jsonlenstr += c
@@ -126,6 +121,7 @@ class Query:
         # tokenize
         # remove stop words
         splitText = tokenizeFunction(text)
+        
 
         documentInfoDict = {}
         
@@ -133,7 +129,7 @@ class Query:
             stem = stemFunction(word)
             documentInfoDict[stem] = self.stemDocInfoRetrieve(stem, indexFile, stemPositions)
         
-        #print("DOC INFO RET", documentInfoDict)
+        
         return documentInfoDict
     
     def documentRetrieval(self, text):
@@ -144,10 +140,10 @@ class Query:
 
         documentInfoDictItems = list(documentInfoDict.items())
 
-        #print("DOC INFO DICT ITEMS:", documentInfoDictItems)
+        
         cutoffPoint = 100
         maxCutofPoint = 1600
-        lengthneeded = 5
+        lengthneeded = self.numResults
         while True:
             documentswithAll = [[docInfo[0], docInfo[2]] for docInfo in documentInfoDictItems[0][1][:cutoffPoint]]
             
@@ -214,15 +210,13 @@ class Query:
         return lst3
     
     def cosineSim(self, query, documentswithAll):
-
         documentInfoDict = self.docInfoRetrieve(query)
-        documentInfoDictItems = list(documentInfoDict.items())
+        # documentInfoDictItems = list(documentInfoDict.items())
         scores = {}
         
         query = query.split(" ")
         # new stemInfo{'stem', [[doc number, [postions], tfidf_score]}
-        for q in query:
-            stem = self.porterStemmer.stem(q)
+        for stem in documentInfoDict:
             documents = documentInfoDict[stem]
             
             df = len(documents)
@@ -230,67 +224,32 @@ class Query:
                 term_frequency = len(posting[1])
                 doc_id = posting[0]
                 tf_idf = posting[2]
-                qFreq = self.queryFreq(query, q)
+                qFreq = self.queryFreq(query, stem)
                 qScore = self.tf_idfScore(df,qFreq)
                 # calculate score
-                print(f"qfreq{qFreq}, qScore{qScore}")
+                
                 if doc_id in scores:
                     scores[doc_id] += qScore * posting[2]
                 else:
                     scores[doc_id] = qScore * posting[2]
                 
-                print(f"DOC: {doc_id}: {tf_idf} term freq: {term_frequency} length{self.docInfoLst[doc_id][2]}")
-
-            for doc_id, score in scores.items():
-                doc_len = math.log10(self.docInfoLst[doc_id][2])
-                scores[doc_id] = round(scores[doc_id] / doc_len,3)
-        
-        #print(scores.items())
-        #sortedScores = dict(sorted(scores.items(), key = lambda x: x[1], reverse=True))
+        for doc_id, score in scores.items():
+            doc_len = math.log10(self.docInfoLst[doc_id][2])
+            scores[doc_id] = round(scores[doc_id] / doc_len,3)
 
         for doc in documentswithAll:
             if doc[0] in scores:
                 doc[1] = scores[doc[0]] 
-
-        print(f"sorted scores:", scores)
+        
         return documentswithAll
 
     def queryFreq(self, query, word):
         count = 0
         for q in query:
-            if q == word:
+            
+            if self.porterStemmer.stem(q) == word:
                 count += 1
         return count
-
-    
-    # for each term in query:
-    #   calculate tf-idf score of it
-    #   
-
-
-    # Takes in a set of document id numbers and a list of (documentInfoDict) items
-    def rankDocumentByScore(self, documentSet, documentInfo):
-        documentRank = {}
-        # for each word in documentInfo
-        for docInfo in documentInfo:
-            # for each document in word, check if document is in word posting
-            # count the frequency, store into a dictionary
-            documents = docInfo[1]
-            documentFrequency = len(documents)
-            for doc in documents:
-                #count frequency (calculate score with tf-idf)
-                if doc[0] in documentSet:
-                    score = self.tf_idfScore(documentFrequency, Ranking.positionsToRank(doc[1]))
-                    if doc[0] in documentRank:
-                        documentRank[doc[0]] = documentRank[doc[0]] + score
-                    else:
-                        documentRank[doc[0]] = score
-
-        documentRank = dict(sorted(documentRank.items(), key = lambda x: x[1], reverse=True))
-        
-        return documentRank
-        
-        
     # tf-idf score:
     # w(t,d) = (1+log(term freq per document)) * log(N/doc freq)
     def tf_idfScore(self, docFreq, termFreq):
@@ -299,8 +258,6 @@ class Query:
         idf = self.idfScore(docFreq)
 
         tf_idf = tf * idf
-
-        # print(f"tf{tf}, idf{idf}, tf_idf, {tf_idf}")
 
         return tf_idf
 
@@ -322,11 +279,10 @@ class Query:
         # time start
         start_time = datetime.datetime.now()
         res = self.documentRetrieval(text)
+        self.bigramscoring(res, text)
         res = self.cosineSim(text, res)
         
-        # self.bigramscoring(res, text)
-        #print("RESSSSS", res)
-        res = sorted(res, key=lambda x: x[1], reverse=True)[:5]
+        res = sorted(res, key=lambda x: x[1], reverse=True)[:self.numResults]
         # time end
         end_time = datetime.datetime.now()
         print(f"time: {(end_time - start_time).total_seconds() * 1000.0} milliseconds")

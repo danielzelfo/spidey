@@ -9,7 +9,7 @@ import json
 warnings.filterwarnings("ignore")
 
 #Directory of files
-directory = "page_data/filtered_data_new/"
+directory = "page_data/filtered_small/"
 
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.
@@ -20,11 +20,12 @@ def build_index(num_documents, index_function):
             for fileInfo in files:
                 fileInfoArr = json.loads(fileInfo)
                 title = fileInfoArr[0]
+                importantTagExtentList = fileInfoArr[4]
                 filepath = os.path.join(directory, fileInfoArr[2])
-                index_function(filepath, title)
+                index_function(filepath, title, importantTagExtentList)
                 bar()
 
-def run():    
+def run():
     run_log = open("run_log.txt", "a")
     run_log.write("INDEX RUN STARTED AT: " + str(datetime.datetime.now()) + "\n")
 

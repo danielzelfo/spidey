@@ -18,6 +18,8 @@ class Indexer:
         self.index_num = {}
         self.num_values = 0
 
+        self.importantTagExtentLists = []
+
         self.BIGRAM_INDEX_PATH = "bigram_index"
         self.INDEX_PATH = "index"
 
@@ -58,7 +60,7 @@ class Indexer:
     # filepath ex: direc/file.json
     # Stores tokens into dictionary
     # Offloads dictionary once token entires exceeds threshold
-    def index(self, filepath, title):
+    def index(self, filepath, title, importantTagExtentList):
         # extract data from file
         if not os.path.isfile(filepath):
             print("WARNING: called index with file that doesn't exist.")
@@ -90,11 +92,13 @@ class Indexer:
         
         self.document_count += 1
 
+        self.importantTagExtentLists.append(importantTagExtentList)
+
         if self.document_count == self.numDocuments:
             self.offload(self.INDEX_PATH)
             self.reset()
 
-    def bigram_index(self, filepath, title):
+    def bigram_index(self, filepath, title, importantTagExtentList):
         if not os.path.isfile(filepath):
             print("WARNING: called bigram_index with file that doesn't exist.")
             return
@@ -126,6 +130,8 @@ class Indexer:
         self.processStemPositions(stemPositions, self.BIGRAM_INDEX_PATH)
         
         self.document_count += 1
+
+        self.importantTagExtentLists.append(importantTagExtentList)
 
         if self.document_count == self.numDocuments:
             self.offload(self.BIGRAM_INDEX_PATH)
@@ -174,7 +180,7 @@ class Indexer:
         documentFrequency = len(documentInfo) # Number of documents per term
         
         for doc in documentInfo:
-            termFreq = Ranking.positionsToRank(doc[1])
+            termFreq = Ranking.positionsToRank(doc[1], self.importantTagExtentLists[doc[0]])
             #count frequency (calculate score with tf-idf)
             score = round(self.tf_idfScore(documentFrequency, termFreq), 4)
             
@@ -228,7 +234,7 @@ class Indexer:
     def write_to_disk(self, file, token, entries):
         file.write(f"{token}:")
         for entry in entries:
-            entrystr = json.dumps(entry)
+            entrystr = json.dumps(entry, separators=(',', ':'))
             file.write(f"[{len(entrystr)}]{entrystr}")
         
         file.write("\n")
