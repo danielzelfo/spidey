@@ -56,7 +56,7 @@ class HTMLParser:
         # stem the unique tokens and combine positions
         stemdict = {}
         for token, positions in tokendict.items():
-            stem = self.porterStemmer.stem(token)
+            stem = " ".join([self.porterStemmer.stem(t) for t in token.split()])
             if not stem in stemdict:
                 stemdict[stem] = positions
             else:

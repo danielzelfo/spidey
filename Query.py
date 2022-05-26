@@ -1,21 +1,25 @@
 from nltk.stem import PorterStemmer
 from HTMLParser import HTMLParser
 from Ranking import Ranking
+from collections import Counter
 import json
 import datetime
 import math
+import time
 
 class Query:
     def __init__(self):
         self.indexStemPositions = { }
+        self.bigramStemPositions = { }
         self.indexFile = open("index.txt", "r")
+        self.bigramIndexFile = open("bigram_index.txt", "r")
         self.porterStemmer = PorterStemmer()
         self.docInfoLst = []
         self.htmlParser = HTMLParser()
         with open("docInfo.txt", "r") as f:
             for line in f:
                 docInfo = json.loads(line.strip())
-                self.docInfoLst.append(docInfo[:2])#only save title and url
+                self.docInfoLst.append(docInfo[:2] + [docInfo[3]])#only save title and url
         
         self.minlength = 3
         self.stopwords = {'about', 'were', 'having', 'more', 'same', 'for', 'your', 'very', 'up', 'out', 'has', 'again', 'some', 'through', 'all', 'not', 'we', 'during', 'be', 'between', 'until', 'whom', 'theirs', 'few', 'most', 'where', 'such', 'he', 'what', 'those', 'no', 'an', 'let', 'it', 'too', 'you', 'have', 'ours', 'her', 'will', 'who', 'than', 'further', 'after', 'are', 'if', 'was', 'doing', 'our', 'been', 'then', 'into', 'ought', 'the', 'over', 'us', 'while', 'own', 'being', 'his', 'these', 'cannot', 'down', 'in', 'below', 'yourselves', 'their', 'or', 'so', 'him', 'this', 'but', 'they', 'on', 'both', 'once', 'itself', 'them', 'only', 'by', 'there', 'is', 'herself', 'how', 'she', 'did', 'to', 'a', 'themselves', 'which', 'off', 'because', 'against', 'yourself', 'with', 'at', 'its', 'before', 'does', 'that', 'had', 'me', 'i', 'other', 'each', 'hers', 'and', 'as', 'nor', 'under', 'himself', 'am', 'any', 'would', 'from', 'of', 'should', 'must', 'my', 'myself', 'why', 'above', 'when', 'shall', 'could', 'here', 'yours', 'do', 'ourselves'}
@@ -24,11 +28,20 @@ class Query:
             self.numDocuments = int(f.readline().strip())
         
         self.initializeIndexStemPositions()
+        # self.initializeBigramIndexStemPositions()
 
-    
     def tokenizeStop(self, text):
         tokens = [x[0] for x in self.htmlParser.tokenize(text.strip())]
         newtokens = [t for t in tokens if not t in self.stopwords and len(t) >= self.minlength]
+        return newtokens
+    
+    def tokenizeBigramStop(self, text):
+        #passes if 1st or 2nd token is not a stop word, passes condition
+        def passcond(t):
+            ts = t.split()
+            return not (ts[0] in self.stopwords or ts[1] in self.stopwords)
+        tokens = [x[0] for x in self.htmlParser.bigram_tokenize(text.strip())]
+        newtokens = [t for t in tokens if passcond(t)]
         return newtokens
         
     def initializeIndexStemPositions(self):
@@ -38,19 +51,36 @@ class Query:
         for line in self.indexFile:
             stem = line.split(":")[0]
             self.indexStemPositions[stem] = currentPos
+            #print(stem, "at", currentPos)
+            #time.sleep(1)
             currentPos += len(line)
     
+    def initializeBigramIndexStemPositions(self):
+        # run through bigram_index.txt
+        # save positions of stems
+        currentPos = 0
+        for line in self.bigramIndexFile:
+            stem = line.split(":")[0]
+            self.bigramStemPositions[stem] = currentPos
+            currentPos += len(line)
+
     # return [[docId1, [positions1]], [docId2, [positions2]], ...]
-    def stemDocInfoRetrieve(self, stem):
+    def stemDocInfoRetrieve(self, stem, indexFile = None, stemPositions = None):
+        if indexFile is None:
+            indexFile = self.indexFile
+        
+        if stemPositions is None:
+            stemPositions = self.indexStemPositions
+        
         documentsInfo = []
         
-        if not stem in self.indexStemPositions:
+        if not stem in stemPositions:
             return documentsInfo
         
-        #get positon from self.indexStemPositions
-        position = self.indexStemPositions[stem]
+        #get positon from index stem positions
+        position = stemPositions[stem]
         # seek in self.indexFile to that position
-        self.indexFile.seek(position)
+        indexFile.seek(position)
         
         #skip stem / colon after
         while True:
@@ -59,42 +89,62 @@ class Query:
                 break
         
         jsonlenstr = ""
-        self.indexFile.read(1) #skip [
+        indexFile.read(1) #skip [
         while True:
-            c = self.indexFile.read(1)
+            c = indexFile.read(1)
             if not c or c == '\n':
+                #print("not c or c == '\\n' #1")
+                print(not c, c == '\n')
                 break
             if c == "]":
+                #print("reading", jsonlenstr)
                 jsonlen = int(jsonlenstr)
-                documentsInfo.append(json.loads(self.indexFile.read(jsonlen)))
+                documentsInfo.append(json.loads(indexFile.read(jsonlen)))
+                #print(documentsInfo[-1])
                 jsonlenstr = ""
-                c = self.indexFile.read(1) #skip [
+                c = indexFile.read(1) #skip [
                 if not c or c == '\n':
+                    #print("not c or c == '\\n' #2")
+                   # print(not c, c == '\n')
                     break
             else:
                 jsonlenstr += c
         
         return documentsInfo
-    
-    def docInfoRetrieve(self, text):
+
+    def stemBigram(self, token):
+        return " ".join([self.porterStemmer.stem(t) for t in token.split()])
+
+    def docInfoRetrieve(self, text, tokenizeFunction=None, stemFunction=None, indexFile = None, stemPositions = None):
+        
+        if tokenizeFunction is None:
+            tokenizeFunction = self.tokenizeStop
+
+        if stemFunction is None:
+            stemFunction = self.porterStemmer.stem
+        
         # tokenize
         # remove stop words
-        splitText = self.tokenizeStop(text)
+        splitText = tokenizeFunction(text)
 
         documentInfoDict = {}
         
         for word in splitText:
-            stem = self.porterStemmer.stem(word)
-            documentInfoDict[stem] = self.stemDocInfoRetrieve(stem)
+            stem = stemFunction(word)
+            documentInfoDict[stem] = self.stemDocInfoRetrieve(stem, indexFile, stemPositions)
         
+        #print("DOC INFO RET", documentInfoDict)
         return documentInfoDict
-            
-    def ANDboolean(self, documentInfoDict):
+    
+    def documentRetrieval(self, text):
+        documentInfoDict = self.docInfoRetrieve(text)
+        #("after retrieval: ", documentInfoDict)
         if len(documentInfoDict) == 0:
-            return set()
+            return []
 
         documentInfoDictItems = list(documentInfoDict.items())
 
+        #print("DOC INFO DICT ITEMS:", documentInfoDictItems)
         cutoffPoint = 100
         maxCutofPoint = 1600
         lengthneeded = 5
@@ -112,11 +162,31 @@ class Query:
                 continue
             
             break
-        
-        documentswithAll = sorted(documentswithAll, key=lambda x: x[1], reverse=True)[:lengthneeded]
 
-        return documentswithAll
+        # here we have all the docs with all the words
+        # adjust score based on bigram
+
+        return list(documentswithAll)
     
+    def bigramscoring(self, documentswithAll, queryText):
+        setOfAllPrev = set(x[0] for x in documentswithAll)
+        
+        cutoffPoint = 999
+        documentInfoDict = self.docInfoRetrieve(queryText, self.tokenizeBigramStop, self.stemBigram, self.bigramIndexFile, self.bigramStemPositions)
+        documentInfoDictItems = list(documentInfoDict.items())
+        #get set of bigram documents, intersect regular document index with bigram documents into bigramdocumentid
+        #check if regular docs are in bigram doc- if so, add score to it
+        for i in range(len(documentInfoDict)):
+            bigramdocuments = [[docInfo[0], docInfo[2]] for docInfo in documentInfoDictItems[i][1][:cutoffPoint]]
+            
+            bigramdocumentsDict = {x[0]: x[1] for x in bigramdocuments}
+            bigramdocumentsIds = set(x[0] for x in bigramdocuments)
+            bigramdocumentsIds.intersection_update(setOfAllPrev)
+
+            for doc in documentswithAll:
+                if doc[0] in bigramdocumentsIds:
+                    doc[1] += bigramdocumentsDict[doc[0]]          #add tf-idf score if it has a bigram
+
     def find(self, lst, value, key):
         for i in lst:
             if key(i) == key(value):
@@ -143,6 +213,61 @@ class Query:
                 lst3.append([value[0], value[1] + found[1]])
         return lst3
     
+    def cosineSim(self, query, documentswithAll):
+
+        documentInfoDict = self.docInfoRetrieve(query)
+        documentInfoDictItems = list(documentInfoDict.items())
+        scores = {}
+        
+        query = query.split(" ")
+        # new stemInfo{'stem', [[doc number, [postions], tfidf_score]}
+        for q in query:
+            stem = self.porterStemmer.stem(q)
+            documents = documentInfoDict[stem]
+            
+            df = len(documents)
+            for posting in documents:
+                term_frequency = len(posting[1])
+                doc_id = posting[0]
+                tf_idf = posting[2]
+                qFreq = self.queryFreq(query, q)
+                qScore = self.tf_idfScore(df,qFreq)
+                # calculate score
+                print(f"qfreq{qFreq}, qScore{qScore}")
+                if doc_id in scores:
+                    scores[doc_id] += qScore * posting[2]
+                else:
+                    scores[doc_id] = qScore * posting[2]
+                
+                print(f"DOC: {doc_id}: {tf_idf} term freq: {term_frequency} length{self.docInfoLst[doc_id][2]}")
+
+            for doc_id, score in scores.items():
+                doc_len = math.log10(self.docInfoLst[doc_id][2])
+                scores[doc_id] = round(scores[doc_id] / doc_len,3)
+        
+        #print(scores.items())
+        #sortedScores = dict(sorted(scores.items(), key = lambda x: x[1], reverse=True))
+
+        for doc in documentswithAll:
+            if doc[0] in scores:
+                doc[1] = scores[doc[0]] 
+
+        print(f"sorted scores:", scores)
+        return documentswithAll
+
+    def queryFreq(self, query, word):
+        count = 0
+        for q in query:
+            if q == word:
+                count += 1
+        return count
+
+    
+    # for each term in query:
+    #   calculate tf-idf score of it
+    #   
+
+
     # Takes in a set of document id numbers and a list of (documentInfoDict) items
     def rankDocumentByScore(self, documentSet, documentInfo):
         documentRank = {}
@@ -166,29 +291,29 @@ class Query:
         return documentRank
         
         
-    # # tf-idf score:
-    # # w(t,d) = (1+log(term freq per document)) * log(N/doc freq)
-    # def tf_idfScore(self, docFreq, termFreq):
-    #     tf = self.tfScore(termFreq)
+    # tf-idf score:
+    # w(t,d) = (1+log(term freq per document)) * log(N/doc freq)
+    def tf_idfScore(self, docFreq, termFreq):
+        tf = self.tfScore(termFreq)
 
-    #     idf = self.idfScore(docFreq)
+        idf = self.idfScore(docFreq)
 
-    #     tf_idf = tf * idf
+        tf_idf = tf * idf
 
-    #     # print(f"tf{tf}, idf{idf}, tf_idf, {tf_idf}")
+        # print(f"tf{tf}, idf{idf}, tf_idf, {tf_idf}")
 
-    #     return tf_idf
+        return tf_idf
 
-    # def tfScore(self, termFreq):
-    #     weightScore = 0
-    #     if termFreq > 0:
-    #         weightScore = 1 + math.log10(termFreq)
+    def tfScore(self, termFreq):
+        weightScore = 0
+        if termFreq > 0:
+            weightScore = 1 + math.log10(termFreq)
 
-    #     return weightScore
+        return weightScore
 
-    # # docFreq is the the number of documents that contain term
-    # def idfScore(self, docFreq):
-    #     return math.log10(self.numDocuments/docFreq)
+    # docFreq is the the number of documents that contain term
+    def idfScore(self, docFreq):
+        return math.log10(self.numDocuments/docFreq)
 
     def printDocumentsInfo(self, docNums):
         print("\n".join(self.docInfoLst[docNum][0]+"\n\t"+self.docInfoLst[docNum][1] for docNum in docNums))
@@ -196,7 +321,12 @@ class Query:
     def printQueryResults(self, text):
         # time start
         start_time = datetime.datetime.now()
-        res = list(self.ANDboolean(self.docInfoRetrieve(text)))
+        res = self.documentRetrieval(text)
+        res = self.cosineSim(text, res)
+        
+        # self.bigramscoring(res, text)
+        #print("RESSSSS", res)
+        res = sorted(res, key=lambda x: x[1], reverse=True)[:5]
         # time end
         end_time = datetime.datetime.now()
         print(f"time: {(end_time - start_time).total_seconds() * 1000.0} milliseconds")

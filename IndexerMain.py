@@ -9,7 +9,7 @@ import json
 warnings.filterwarnings("ignore")
 
 #Directory of files
-directory = "page_data/filtered_data/"
+directory = "page_data/filtered_data_new/"
 
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.
@@ -35,7 +35,6 @@ def run():
     
     print("BUILDING INDEX...")
     build_index(num_documents, indexer.index)
-    print(indexer.document_count, num_documents)
     
     # reset indexing variables
     indexer.reset()
@@ -45,8 +44,7 @@ def run():
     
     stem_counts = indexer.k_way_merge_files()
 
-    print("Scoring and sorting index file...")
-    indexer.post_index_score(stem_counts[indexer.INDEX_PATH])
+    indexer.post_index_score(stem_counts)
 
     run_log.write("INDEX RUN ENDED AT: " + str(datetime.datetime.now()) + "\n")
     run_log.close()

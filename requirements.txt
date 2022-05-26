@@ -1,4 +1,4 @@
 beautifulsoup4
 nltk
 alive-progress
-contrations
+contractions

@@ -79,8 +79,8 @@ class Filter:
             
             self.footprints.append(footprint)
             # save document Info
-            docInfoFile.write(f"{json.dumps([title, url, filename])}\n")
-
+            docInfoFile.write(f"{json.dumps([title, url, filename, length])}\n")
+        
             self.countSuccessFul += 1
 
             self.encountered_urls.add(url)
