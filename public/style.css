@@ -77,7 +77,7 @@ a:visited {
     cursor: default;
 }
 
-.title span:hover{
+.title span:hover {
     color: red;
 }
 
@@ -149,29 +149,31 @@ a:visited {
     margin-top: 20px;
     padding: 20px;
     overflow-y: auto;
-    
+
 }
+
 @media only screen and (min-width: 737px) {
     .results {
         padding-left: 100px;
     }
 }
 
-.search-result > div {
+.search-result>div {
     display: block;
     overflow: hidden;
 }
 
-.search-result > div:nth-child(1) a {
+.search-result>div:nth-child(1) a {
     font-size: 20px;
     font-weight: bold;
 }
 
-.search-result > div:nth-child(1) a:hover {
+.search-result>div:nth-child(1) a:hover {
     text-decoration: underline;
 }
 
-.search-result > div:nth-child(2) a {
+.results>p,
+.search-result>div:nth-child(2) a {
     color: #bdc1c6;
     font-size: 14px;
 }

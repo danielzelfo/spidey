@@ -1,13 +1,13 @@
 import Head from 'next/head'
 import { useState, useMemo } from 'react';
-import {search} from "backend/search";
+import { search } from "backend/search";
 
 export default function Home() {
   const [isFocused, setIsFocused] = useState(false);
   const headerClassName = isFocused
-        ? "header wide"
-        : "header";
-  
+    ? "header wide"
+    : "header";
+
   const eventHandlers = useMemo(() => ({
     onFocus: () => setIsFocused(true),
     onBlur: () => setIsFocused(false),
@@ -22,18 +22,16 @@ export default function Home() {
         setAppStyle("dark");
         search(e.target.value)
           .then(response => setResults(response.data))
-          .catch(error => {console.log("error"); console.log(JSON.stringify(error))}
-        );
+          .catch(error => { console.log("error"); console.log(JSON.stringify(error)) }
+          );
       }
-      
-      
     }
   }
 
   const [results, setResults] = useState([]);
 
   const [appStyle, setAppStyle] = useState("");
-    
+
   return (
     <div className="container">
       <Head>
@@ -52,22 +50,23 @@ export default function Home() {
               <input className='searchBar' placeholder="Search" {...eventHandlers} onKeyPress={keyPressHandler} />
             </div>
           </div>
-          <div className="results">
-            {
-             
-                results.map( result =>
-                    <div key={result.id} className="search-result">
-                        <div>
-                          <a href={result.url}>{result.title}</a>
-                        </div>
-                        <div>
-                          <a href={result.url}>{result.url}</a>
-                        </div>
+          {!!results.results &&
+            <div className="results">
+              <p>search time: {results.time.toFixed(5)} milliseconds</p>
+              {
+                results.results.map((result, index) =>
+                  <div key={index} className="search-result">
+                    <div>
+                      <a href={result[1]}>{result[0]}</a>
                     </div>
-                )       
-              
+                    <div>
+                      <a href={result[1]}>{result[1]}</a>
+                    </div>
+                  </div>
+                )
               }
-          </div>
+            </div>
+          }
         </div>
       </main>
     </div>
