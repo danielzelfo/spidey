@@ -130,17 +130,16 @@ class Query:
             documentInfoDict[stem] = self.stemDocInfoRetrieve(stem, indexFile, stemPositions)
         
         
-        return documentInfoDict
+        return documentInfoDict# 
     
-    def documentRetrieval(self, text):
-        documentInfoDict = self.docInfoRetrieve(text)
-        #("after retrieval: ", documentInfoDict)
+    
+    def documentRetrieval(self, documentInfoDict):
         if len(documentInfoDict) == 0:
             return []
-
-        documentInfoDictItems = list(documentInfoDict.items())
-
         
+        # sort by number of docs for performance improvement of intersection
+        documentInfoDictItems = sorted(documentInfoDict.items(), key = lambda x: len(x[1]))
+
         cutoffPoint = 100
         maxCutofPoint = 1600
         lengthneeded = self.numResults
@@ -209,9 +208,7 @@ class Query:
                 lst3.append([value[0], value[1] + found[1]])
         return lst3
     
-    def cosineSim(self, query, documentswithAll):
-        documentInfoDict = self.docInfoRetrieve(query)
-        # documentInfoDictItems = list(documentInfoDict.items())
+    def cosineSim(self, query, documentInfoDict, documentswithAll):
         scores = {}
         
         query = query.split(" ")
@@ -220,22 +217,21 @@ class Query:
             documents = documentInfoDict[stem]
             
             df = len(documents)
+            qFreq = self.queryFreq(query, stem)
             for posting in documents:
-                term_frequency = len(posting[1])
                 doc_id = posting[0]
                 tf_idf = posting[2]
-                qFreq = self.queryFreq(query, stem)
                 qScore = self.tf_idfScore(df,qFreq)
                 # calculate score
                 
                 if doc_id in scores:
-                    scores[doc_id] += qScore * posting[2]
+                    scores[doc_id] += qScore * tf_idf
                 else:
-                    scores[doc_id] = qScore * posting[2]
+                    scores[doc_id] = qScore * tf_idf
                 
         for doc_id, score in scores.items():
             doc_len = math.log10(self.docInfoLst[doc_id][2])
-            scores[doc_id] = round(scores[doc_id] / doc_len,3)
+            scores[doc_id] = round(scores[doc_id] / doc_len, 3)
 
         for doc in documentswithAll:
             if doc[0] in scores:
@@ -246,7 +242,6 @@ class Query:
     def queryFreq(self, query, word):
         count = 0
         for q in query:
-            
             if self.porterStemmer.stem(q) == word:
                 count += 1
         return count
@@ -278,9 +273,10 @@ class Query:
     def printQueryResults(self, text):
         # time start
         start_time = datetime.datetime.now()
-        res = self.documentRetrieval(text)
+        documentInfoDict = self.docInfoRetrieve(text)
+        res = self.documentRetrieval(documentInfoDict)
         self.bigramscoring(res, text)
-        res = self.cosineSim(text, res)
+        res = self.cosineSim(text, documentInfoDict, res)
         
         res = sorted(res, key=lambda x: x[1], reverse=True)[:self.numResults]
         # time end
