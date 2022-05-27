@@ -22,13 +22,13 @@ export default function Home() {
         setAppStyle("dark");
         search(e.target.value)
           .then(response => setResults(response.data))
-          .catch(error => { console.log("error"); console.log(JSON.stringify(error)) }
+          .catch(error => { alert("Service unavailable. Please try again later.") }
           );
       }
     }
   }
 
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState({});
 
   const [appStyle, setAppStyle] = useState("");
 
@@ -44,7 +44,7 @@ export default function Home() {
         <div id="app" className={appStyle}>
           <div className={headerClassName}>
             <div className="titleContainer">
-              <h1 className="title"><span>S</span><span>p</span><span>i</span><span>d</span><span>e</span><span>y</span> Search</h1>
+              <h1 onClick={()=>setAppStyle("glass")} className="title"><span>S</span><span>p</span><span>i</span><span>d</span><span>e</span><span>y</span> Search</h1>
             </div>
             <div className="searchBarContainer">
               <input className='searchBar' placeholder="Search" {...eventHandlers} onKeyPress={keyPressHandler} />
