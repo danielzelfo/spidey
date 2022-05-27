@@ -133,7 +133,7 @@ class Query:
         return documentInfoDict# 
     
     
-    def documentRetrieval(self, documentInfoDict):
+    def ANDBoolean(self, documentInfoDict):
         if len(documentInfoDict) == 0:
             return []
         
@@ -235,9 +235,7 @@ class Query:
 
         for doc in documentswithAll:
             if doc[0] in scores:
-                doc[1] = scores[doc[0]] 
-        
-        return documentswithAll
+                doc[1] = scores[doc[0]]
 
     def queryFreq(self, query, word):
         count = 0
@@ -267,19 +265,34 @@ class Query:
     def idfScore(self, docFreq):
         return math.log10(self.numDocuments/docFreq)
 
+    def getDocumentsInfo(self, docNums):
+        return [[self.docInfoLst[docNum][0], self.docInfoLst[docNum][1]] for docNum in docNums]
+
     def printDocumentsInfo(self, docNums):
         print("\n".join(self.docInfoLst[docNum][0]+"\n\t"+self.docInfoLst[docNum][1] for docNum in docNums))
     
-    def printQueryResults(self, text):
+    def getQueryResults(self, text):
         # time start
         start_time = datetime.datetime.now()
+
         documentInfoDict = self.docInfoRetrieve(text)
-        res = self.documentRetrieval(documentInfoDict)
-        self.bigramscoring(res, text)
-        res = self.cosineSim(text, documentInfoDict, res)
-        
+
+        # get document with tf-idf score
+        res = self.ANDBoolean(documentInfoDict)
+        # bigram / cosine similarity
+        if len(documentInfoDict) > 1:
+            self.bigramscoring(res, text)
+            self.cosineSim(text, documentInfoDict, res)
+
         res = sorted(res, key=lambda x: x[1], reverse=True)[:self.numResults]
+
         # time end
         end_time = datetime.datetime.now()
-        print(f"time: {(end_time - start_time).total_seconds() * 1000.0} milliseconds")
+        timemilli = (end_time - start_time).total_seconds() * 1000.0
+
+        return res, timemilli
+
+    def printQueryResults(self, text):
+        res, timemilli = self.getQueryResults(text)
+        print(f"time: {timemilli} milliseconds")
         self.printDocumentsInfo([r[0] for r in res])

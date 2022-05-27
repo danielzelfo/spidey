@@ -1,15 +1,13 @@
 from Indexer import Indexer
-from pathlib import Path
 from alive_progress import alive_bar
 import datetime
-import glob
 import os
 import warnings
 import json
 warnings.filterwarnings("ignore")
 
 #Directory of files
-directory = "page_data/filtered_small/"
+directory = "page_data/filtered_data/"
 
 # Main Program
 # Initalizes Indexer, reads and offloads data, merges data into single file when finished.

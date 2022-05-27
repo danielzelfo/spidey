@@ -1,4 +1,3 @@
-import sys
 from Query import Query
 
 if __name__ == "__main__":

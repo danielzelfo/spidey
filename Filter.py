@@ -14,6 +14,7 @@ class Filter:
         self.encountered_urls = set()
         self.footprints = []
         self.importantTags = ["b", "strong", "h1", "h2", "h3"]
+        self.duplicateThreshold = 0.97
 
     def get_footprint(self, dict1):
         keys = list(dict1.keys())
@@ -93,7 +94,7 @@ class Filter:
                     if footprint[0][j] == comparefootprint[0][j]: 
                         counter += 1
                 similarity = counter/64
-                if similarity > .95 and min(comparefootprint[1], footprint[1])/max(comparefootprint[1], footprint[1]) > .95:
+                if similarity > self.duplicateThreshold and min(comparefootprint[1], footprint[1])/max(comparefootprint[1], footprint[1]) > self.duplicateThreshold:
                     return
             
             self.footprints.append(footprint)
