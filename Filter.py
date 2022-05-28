@@ -4,6 +4,7 @@ from alive_progress import alive_bar
 from urllib.parse import urldefrag
 from HTMLParser import HTMLParser
 
+# A class to filter duplicate pages
 class Filter:
     def __init__(self, files, textContentSavePath, run_log):
         self.files = files
@@ -12,10 +13,14 @@ class Filter:
         self.htmlParser = HTMLParser()
         self.countSuccessFul = 0
         self.encountered_urls = set()
-        self.footprints = []
+        self.footprints = {}
         self.importantTags = ["b", "strong", "h1", "h2", "h3"]
-        self.duplicateThreshold = 0.97
+        self.duplicateThreshold = 0.975
+        self.bucketSize = 100
+        self.docInfoSavePath = "docInfo.txt"
+        self.numDocsSavePath = "num_documents.txt"
 
+    # A function to get footprint of a web page
     def get_footprint(self, dict1):
         keys = list(dict1.keys())
         vector = [0] * 64
@@ -35,21 +40,21 @@ class Filter:
         return "".join([str(z) for z in vector])
 
     def filter_file(self, filepath, docInfoFile):
-        with open(filepath) as f:
+        with open(filepath, "r") as f:                  # Extract content
             data = json.load(f)
             content = data["content"]
             encoding = data["encoding"]
             url = data["url"]
         
-        url = urldefrag(url)[0]
+        url = urldefrag(url)[0]                     # Defrag the url
         if url in self.encountered_urls:
             return
 
         # safely extract text
         try:
             
-            importantTagsExtentLists = {}
-            title, textContentElems = self.htmlParser.extract_info(content, encoding, url)
+            importantTagsExtentLists = {}                   # Dict to store headings
+            title, textContentElems = self.htmlParser.extract_info(content, encoding, url)              # Parse the html
 
             filename = os.path.split(filepath)[-1]
             saveFilePath = os.path.join(self.textContentSavePath, filename)
@@ -59,7 +64,7 @@ class Filter:
             fileLength = 0
             with open(saveFilePath, "w") as f:
                 for textElem in textContentElems:
-                    
+                    # Count frequency of tokens
                     elemText = ""
                     for to in self.htmlParser.tokenize(textElem[1]):
                         tokenLength += 1
@@ -71,6 +76,7 @@ class Filter:
                         
                         elemText += token + " "
                     
+                    # Add important tags
                     for tag in self.importantTags:
                         if textElem[0] == tag:
                             if not tag in importantTagsExtentLists:
@@ -88,16 +94,20 @@ class Filter:
             footprint = [self.get_footprint(freqDict), tokenLength]
             # loop through all other footprints and compare
             # if similar then stop here
-            for i, comparefootprint in enumerate(self.footprints):
-                counter = 0
-                for j in range(64):
-                    if footprint[0][j] == comparefootprint[0][j]: 
-                        counter += 1
-                similarity = counter/64
-                if similarity > self.duplicateThreshold and min(comparefootprint[1], footprint[1])/max(comparefootprint[1], footprint[1]) > self.duplicateThreshold:
-                    return
+            tokenLengthBucket = tokenLength//self.bucketSize
+            if tokenLengthBucket not in self.footprints:
+                self.footprints[tokenLengthBucket] = []
+            else:
+                for comparefootprint in self.footprints[tokenLengthBucket]:
+                    counter = 0
+                    for j in range(64):
+                        if footprint[0][j] == comparefootprint[0][j]: 
+                            counter += 1
+                    similarity = counter/64
+                    if similarity > self.duplicateThreshold and min(comparefootprint[1], tokenLength)/max(comparefootprint[1], tokenLength) > self.duplicateThreshold:
+                        return
             
-            self.footprints.append(footprint)
+            self.footprints[tokenLengthBucket].append(footprint)
             # save document Info
             docInfoFile.write(f"{json.dumps([title, url, filename, tokenLength, importantTagsExtentLists], separators=(',', ':'))}\n")
         
@@ -110,12 +120,13 @@ class Filter:
             if not self.run_log is None:
                 self.run_log.write(f"Extract text error for {url}: {e}\n")
     
+    # Function to run the filter
     def run_filter(self):
-        with open("docInfo.txt", "w") as docInfoFile:
+        with open(self.docInfoSavePath, "w") as docInfoFile:
             with alive_bar(len(self.files)) as bar:
                 for filepath in self.files:
                     self.filter_file(filepath, docInfoFile)
                     bar()
-        with open("num_documents.txt", "w") as f:
+        with open(self.numDocsSavePath, "w") as f:
             f.write(str(self.countSuccessFul))
         

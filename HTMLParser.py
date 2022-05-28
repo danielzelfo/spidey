@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 import os
 import re
 import contractions
-import time
 
 class HTMLParser:
     def __init__(self):

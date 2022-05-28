@@ -13,3 +13,5 @@ __pycache__/
 /page_data/filtered_data_new/
 page_data/small/
 page_data/filtered_small/
+/docInfo_small.txt
+/num_documents_small.txt

@@ -4,7 +4,10 @@ import os
 from alive_progress import alive_bar
 from HTMLParser import HTMLParser
 from Ranking import Ranking
+import time
 
+
+# Class to build and maintain indexer to store stems and their postings of documents
 class Indexer:
     def __init__(self, numDocuments, entries_per_offload=1000000, run_log=None):
         self.entries_per_offload = entries_per_offload
@@ -60,7 +63,7 @@ class Indexer:
     # filepath ex: direc/file.json
     # Stores tokens into dictionary
     # Offloads dictionary once token entires exceeds threshold
-    def index(self, filepath, title, importantTagExtentList):
+    def index(self, filepath, title, importantTagExtentList, numTokens):
         # extract data from file
         if not os.path.isfile(filepath):
             print("WARNING: called index with file that doesn't exist.")
@@ -98,7 +101,8 @@ class Indexer:
             self.offload(self.INDEX_PATH)
             self.reset()
 
-    def bigram_index(self, filepath, title, importantTagExtentList):
+    def bigram_index(self, filepath, title, importantTagExtentList, numTokens):
+        # not saving importantTagExtentList, numTokens because it is saved in self.index(...)
         if not os.path.isfile(filepath):
             print("WARNING: called bigram_index with file that doesn't exist.")
             return
@@ -131,8 +135,6 @@ class Indexer:
         
         self.document_count += 1
 
-        self.importantTagExtentLists.append(importantTagExtentList)
-
         if self.document_count == self.numDocuments:
             self.offload(self.BIGRAM_INDEX_PATH)
             self.reset()
@@ -153,10 +155,13 @@ class Indexer:
                             stem, stemInfo = self.parseLine(line)
                             #TFIDF SCORE
                             scores = self.calculateTfIdfScore(stemInfo)
-                            #APPEND TO docInfo
+                            #APPEND TO docInfo 
                             for posting in stemInfo:
                                 doc_number = posting[0]
                                 doc_score = scores[doc_number]
+
+                                doc_score = round(doc_score, 4)
+
                                 posting.append(doc_score)
                             # sort by td-idf score
                             if index_path != "bigram_index":
@@ -182,7 +187,7 @@ class Indexer:
         for doc in documentInfo:
             termFreq = Ranking.positionsToRank(doc[1], self.importantTagExtentLists[doc[0]])
             #count frequency (calculate score with tf-idf)
-            score = round(self.tf_idfScore(documentFrequency, termFreq), 4)
+            score =  self.tf_idfScore(documentFrequency, termFreq)
             
             if doc[0] in documentRank:
                 documentRank[doc[0]] = documentRank[doc[0]] + score
@@ -206,6 +211,7 @@ class Indexer:
 
         return tf_idf
 
+    # Function to calculate tf Score
     def tfScore(self, termFreq):
         weightScore = 0
         if termFreq > 0:
@@ -299,7 +305,7 @@ class Indexer:
 
         return stem_counts
 
-    
+    # Function to parse a line in index, returning stem and postings
     def parseLine(self, line):
         documentsInfo = []
 
