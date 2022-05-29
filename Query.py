@@ -367,5 +367,4 @@ class Query:
     def printQueryResults(self, text):
         res, timemilli = self.getQueryResults(text)
         print(f"time: {timemilli} milliseconds")
-        print(res)
         self.printDocumentsInfo([r[0] for r in res])
