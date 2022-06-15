@@ -1,0 +1,5 @@
+cbor
+requests
+lxml
+beautifulsoup4
+cssselect
