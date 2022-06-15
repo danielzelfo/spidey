@@ -1,0 +1,130 @@
+
+TODO:
+
+    1. 
+        trap detection -- webpages with queries (see solutions below)
+        use text similartity algorithm on tokens
+        can use temporary blacklist?
+        
+            use a dictionary of urls as keys (no query)
+                value = list of tokens / counter
+                
+                when the counter reaches the threshold, stop crawling urls that that with the key
+        
+        text-similarity
+            function of two lists
+                 return a float (0-1)
+
+    2.
+        function - takes page url for each page
+        keep track of list of subdomains (use urlparse netloc)
+            number of unique pages in each subdomain (ordered by freq / alpha )
+    
+    3.
+        blacklist
+           low information pages
+                 (num html tags) / (num html tags + num of tokens) > 0.7
+           pages that dont return status 200
+               
+
+SOLUTIONS: 
+
+    traps:
+        issue with same webpage with different query parameters (see examples below)
+            sort queries when crawling to make unique urls (since the order of the queries does not matter)
+            check similarity of all pages with query. if there is not much difference between other query urls on page - blacklist all query urls on that webpage.
+            or limit number of times a url can be visited without the query
+        
+        url patterns:
+            - ex: repeating directory/pattern (see examples below)
+            - find a way to avoid using a pattern or directory depth limit
+            - filter non webpage urls. EX. PDF,CSS
+        and/OR text similarity 
+            - compare to previous page
+            - links inside a similar page will not be crawled
+
+        blacklist - 
+            avoid bad links: 
+                avoid some code - 404?
+                avoid empty responses
+                avoid "low information value page"
+                    ex: 1. ratio number of tags vs number of tokens
+                        2. frequency of tokens that are real words (more processing)
+            avoid traps
+
+        improve is_valid, 
+    
+    robots.txt - 
+        blacklist disallowed (temporary blacklist)
+            note: blacklist should be a pattern
+        
+        sitemap - 
+                crawl sitemap in addition to subdomain index page if it exists
+                
+                pseudo code:
+                
+                when a new subdomain is found, 
+                    add subdomain home page to list?
+
+                    if robots.txt exists and it includes a sitemap
+                        if the sitemap is xml
+                            add the sitemap url to the list
+                        if the sitemap is txt
+                            add all the urls in the txt file to the list
+                
+                note: will need to sleep for robots.txt / sitemap.txt for politeness
+                
+                
+                
+                can use for freshness (not needed) 
+                    if the sitemap isnt kept up to date, check the actual website instead
+
+
+EXAMPLES
+
+    1 repeating path trap
+        https://www.ics.uci.edu/honors/advising/
+        redirects to 
+        https://www.ics.uci.edu/ugrad/honors/index.php/advising/
+
+        trap:
+        https://www.ics.uci.edu/ugrad/honors/index.php/*
+
+
+        examples:
+        http://ics.uci.edu/ugrad/sao/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employment/employ_faculty.php
+
+
+        https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/overview/step-2-honors-seminar-ics-h197.php
+        https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/SAO_News_and_Updates.php
+        https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/forms.php
+        https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/policies/Course_Outside_UCI.php
+        https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/policies/resources/resources/degrees/resources/courses/overview/sao/policies/sao/resources/overview/resources/policies/degrees/policies/degrees/media.php
+        https://www.ics.uci.edu/ugrad/honors/index.php/overview/advising/degrees/overview/degrees/advising/policies/policies/policies/policies/advising/computing/account/computing/sao/sao/resources/policies/courses/policies/resources/resources/degrees/resources/courses/overview/sao/policies/sao/resources/overview/resources/policies/degrees/policies/degrees/sao/policies/forms.php
+
+
+    2. query trap
+        examples # 1: 
+            https://swiki.ics.uci.edu/doku.php/network:pen?image=labs%3Adeploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group%3Asupport%3Aimaging_devices
+            https://swiki.ics.uci.edu/doku.php/network:pen?image=labs:deploystudio_guide_2.0.pdf&tab_details=view&do=media&tab_files=upload&ns=group:support:imaging_devices
+            https://swiki.ics.uci.edu/doku.php/network:pen?ns=security&tab_files=files&do=media&tab_details=view&image=labs%3Adeploystudio_guide_2.0.pdf
+            https://swiki.ics.uci.edu/doku.php/network:pen?image=security%3Afireeyeendpointtaskbaricon.png&ns=security&tab_details=view&do=media&tab_files=files
+            https://swiki.ics.uci.edu/doku.php/network:pen?ns=icsdc&tab_files=files&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png
+            https://swiki.ics.uci.edu/doku.php/network:pen?tab_files=search&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png&ns=icsdc
+            https://swiki.ics.uci.edu/doku.php/network:pen?tab_details=history&do=media&tab_files=search&image=security%3Afireeyeendpointtaskbaricon.png&ns=icsdc
+            https://swiki.ics.uci.edu/doku.php/network:pen?ns=group&tab_files=files&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png
+            https://swiki.ics.uci.edu/doku.php/network:pen?tab_files=upload&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png&ns=group
+            https://swiki.ics.uci.edu/doku.php/network:pen?tab_files=files&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png&ns=group
+            https://swiki.ics.uci.edu/doku.php/network:pen?image=security%3Afireeyeendpointtaskbaricon.png&tab_details=view&do=media&tab_files=upload&ns=group
+            https://swiki.ics.uci.edu/doku.php/network:pen?ns=group%3Asupport&tab_files=files&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png
+            https://swiki.ics.uci.edu/doku.php/network:pen?ns=group%3Asupport%3Agoogle&tab_files=files&do=media&tab_details=view&image=security%3Afireeyeendpointtaskbaricon.png
+            https://swiki.ics.uci.edu/doku.php/network:pen?tab_details=history&do=media&tab_files=files&image=security%3Afireeyeendpointtaskbaricon.png&ns=group%3Asupport%3Agoogle
+            https://swiki.ics.uci.edu/doku.php/network:pen?ns=group%3Asupport%3Ahardware&tab_files=files&do=media&tab_details=history&image=security%3Afireeyeendpointtaskbaricon.png
+
+            sitemap:https://swiki.ics.uci.edu/doku.php/network:pen?do=index
+
+        examples # 2:
+            https://evoke.ics.uci.edu/hollowing-i-in-the-authorship-of-letters-a-note-on-flusser-and-surveillance/?replytocom=75523 https://evoke.ics.uci.edu/hollowing-i-in-the-authorship-of-letters-a-note-on-flusser-and-surveillance/?replytocom=50933 https://evoke.ics.uci.edu/hollowing-i-in-the-authorship-of-letters-a-note-on-flusser-and-surveillance/?replytocom=101215
+            https://evoke.ics.uci.edu/hollowing-i-in-the-authorship-of-letters-a-note-on-flusser-and-surveillance/?replytocom=61919
+            https://evoke.ics.uci.edu/hollowing-i-in-the-authorship-of-letters-a-note-on-flusser-and-surveillance/?replytocom=93968
+            https://evoke.ics.uci.edu/hollowing-i-in-the-authorship-of-letters-a-note-on-flusser-and-surveillance/?replytocom=91703
