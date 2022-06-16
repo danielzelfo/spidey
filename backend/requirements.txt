@@ -3,3 +3,4 @@ nltk
 alive-progress
 contractions
 flask
+uwsgi

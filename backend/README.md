@@ -4,19 +4,19 @@
 ```sh
 $ git clone https://github.com/atran10TF/Search-engine.git
 $ cd Search-engine
-# create virtual environment
+$ # create virtual environment
 $ python3 -m venv env
 ```
 
 ```sh
-# Linux: activate virtual environment
+$ # Linux: activate virtual environment
 $ source env/bin/activate
-# Windows: activate virtual environment
+$ # Windows: activate virtual environment
 $ env\Scripts\activate
 ```
 
 ```sh
-# Install dependencies
+(env) $ # Install dependencies
 (env) $ python3 -m pip install wheel
 (env) $ python3 -m pip install -r requirements.txt
 ```
@@ -46,4 +46,6 @@ $ env\Scripts\activate
 ### Run uWSGI REST API Server (port 5000)
 ```
 (env) $ uwsgi --socket 0.0.0.0:5000 --protocol=http -w wsgi:app
+(end) $ # OR -- run in background:
+(end) $ uwsgi --socket 0.0.0.0:5000 --protocol=http -w wsgi:app --daemonize log.txt
 ```

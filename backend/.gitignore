@@ -6,6 +6,7 @@ __pycache__/
 /index_*.txt
 /bigram_index_*.txt
 /run_log.txt
+/log.txt
 /docInfo.txt
 /num_documents.txt
 /page_data/data/
