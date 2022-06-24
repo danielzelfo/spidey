@@ -11,3 +11,6 @@ __pycache__/
 /num_documents.txt
 /page_data/data/
 /page_data/filtered_data/
+/spidey.pid
+/uwsgi.ini
+/start_uwsgi.sh

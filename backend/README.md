@@ -35,12 +35,21 @@ $ env\Scripts\activate
 ### Setup uWSGI REST API Server (port 5000)
 ```
 (env) $ sudo ufw allow 5000
+(env) $ sudo apt-get install cron
 (env) $ python3 -m pip install uwsgi
 ```
 
 ### Run uWSGI REST API Server (port 5000)
 ```
-(env) $ uwsgi --socket 0.0.0.0:5000 --protocol=http -w wsgi:app
-(end) $ # OR -- run in background:
-(end) $ uwsgi --socket 0.0.0.0:5000 --protocol=http -w wsgi:app --daemonize log.txt
+(env) $ ./init_uwsgi.sh 5000
+```
+
+### Stop uWSGI REST API Server
+```
+(env) $ uwsgi --stop ./spidey.pid
+```
+
+### Disable uWSGI REST API Server
+```
+(env) $ crontab -l | grep -v "@reboot $PWD/start_uwsgi.sh" | crontab -
 ```
