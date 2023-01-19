@@ -1,12 +1,14 @@
 # Spidey Search
-Spidey Search is a fully functional search engine built from the ground up and able to handle hundreds of thousands of documents or web pages. It consists of a crawler, an indexer, and a search interface.
+Spidey Search is a powerful and efficient search engine that can handle large volumes of documents or web pages. It includes a web crawler, an indexer, and a user-friendly search interface, all built from the ground up.
 
-### Crawl
-The crawler can be used to create or update the corpus. It obeys the robots.txt file of the subdomain being crawled. It avoids web traps using various methods including comparing webpage footprints and detecting URL patterns. It can detect webpages with valuable text information and blacklist low information and error webpages.
+### Crawling
+The crawler is designed to create or update the corpus of documents that the search engine indexes. It respects the robots.txt file of the websites it crawls, and uses various methods to avoid common web traps. These include comparing webpage footprints and detecting URL patterns. Additionally, the crawler is able to detect web pages with valuable text information and blacklist low-quality or error pages.
 
-### Index
-The indexer is used to build an inverted index using the corpus. It is written in Python. It first filters the crawled data by detecting and eliminating duplicate pages and extracting the text content and positions of important tags. It then builds index files for different n-grams. Small portions of the index are offloaded in the indexing process and combined at the end using the k-way merge algorithm, allowing the indexer to have a smaller, adjustable memory footprint. The documents for each term in the index files are sorted using their adjusted tf-idf score which considers important HTML tags.
+### Indexing
+The indexer, written in Python, is responsible for building the inverted index that powers the search engine. It filters the crawled data by eliminating duplicate pages, extracting the text content, and determining the positions of important tags. The indexer then builds index files for different n-grams, using a k-way merge algorithm to combine smaller portions of the index as it is built. This allows for a more efficient use of memory. The documents are sorted using an adjusted tf-idf score, which takes into account the importance of HTML tags.
 
-### Query
-The search engine allows the user to search using a web interface that communicates with a REST API to retrieve search results.
-The search engine finds relevant pages by applying intersections and unions on appropriate term document lists. Since the term documents are sorted by their scores, a subset of the documents for each term can be retrieved for intersecting, allowing for faster query times. The ranks of the results are adjusted based on the bigram index and cosine similarity with the query text to enhance search results.
+### Searching
+The search engine allows users to search for relevant documents using a web interface that communicates with a REST API. The search engine finds relevant pages by applying intersections and unions on appropriate term-document lists. The term-documents are sorted by their scores, allowing for faster query times. The search results are ranked using bigram index and cosine similarity with the query text, to enhance the relevance of the results.
+
+## Getting Started
+To get started with Spidey Search, please refer to the [backend](/backend/) and [frontend](/frontend/) README files for specific instructions on how to run and use the system.
