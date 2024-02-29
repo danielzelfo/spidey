@@ -8,12 +8,12 @@
     "export": "next export"
   },
   "dependencies": {
-    "next": "^12.1.5",
+    "next": "^14.1.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "axios": "^0.26.1"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^4.7.0"
+    "@netlify/plugin-nextjs": "^4.41.3"
   }
 }
